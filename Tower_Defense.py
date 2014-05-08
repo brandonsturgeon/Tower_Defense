@@ -5,6 +5,7 @@
 import pygame
 import random
 import time
+import math
 
 
 class OutlinedSurface():
@@ -14,7 +15,7 @@ class OutlinedSurface():
         self.bgcolor = bgcolor
 
         self.surface = pygame.Surface((self.inside_surface.get_width() + offset*2,
-                                       self.inside_surface.get_height() + offset*2))
+                                       self.inside_surface.get_height() + offset*2)).convert()
         self.surface.fill(self.bgcolor)
         self.surface.blit(self.inside_surface, (offset, offset))
 
@@ -23,10 +24,11 @@ class Block(pygame.sprite.Sprite):
     def __init__(self, pos):
         pygame.sprite.Sprite.__init__(self)
         self.pos = pos
-        self.image = pygame.Surface((40, 40))
-        self.image.fill((175, 175, 175))
+        self.image = pygame.Surface((40, 40)).convert()
+        self.color = (125, 125, 125)
+        self.image.fill(self.color)
         self.rect = pygame.Rect(self.pos, self.image.get_size())
-        self.is_shown = True
+        self.is_shown = False
 
 
 # Base Monster class
@@ -35,11 +37,11 @@ class Monster(pygame.sprite.Sprite):
         pygame.sprite.Sprite.__init__(self)
         self.move_time = move_time
         self.spawn_time = time.time()
-        self.image = pygame.Surface((40, 40))
-        self.image_inside = pygame.Surface((38, 38))
+        self.image = pygame.Surface((40, 40)).convert()
+        self.image_inside = pygame.Surface((38, 38)).convert()
         self.image_inside.fill((0, 255, 0))
         self.image.blit(self.image_inside, (1, 1))
-        self.pos = (40, 0)
+        self.pos = (80, 0)
         self.rect = pygame.Rect(self.pos, self.image.get_size())
         self.direction = "DOWN"
         self.speed = 1
@@ -59,14 +61,28 @@ class Monster(pygame.sprite.Sprite):
             while need_move:
                 for speed in list(reversed(range(0, self.speed+1))):
                     if speed != 0:
-                        new_dir = tuple([x*speed for x in self.dir_dic[self.direction]])
+                        angle = math.atan2((520-self.rect.centery),
+                                           (980-self.rect.centerx))
+                        x_speed = math.cos(angle)*speed
+                        y_speed = math.sin(angle)*speed
+                        new_dir = (x_speed, y_speed)
+                        print new_dir
                         temp_rect = self.rect.copy()
                         if temp_rect.move(new_dir).collidelist(blocks) == -1:
                             self.rect.move_ip(new_dir)
                             need_move = False
                             break
                 else:
-                    self.find_new_dir(blocks)
+                    for speed2 in list(reversed(range(0, self.speed+1))):
+                        if speed2 != 0:
+                            new_dir = tuple([x*speed2 for x in self.dir_dic[self.direction]])
+                            temp_rect = self.rect.copy()
+                            if temp_rect.move(new_dir).collidelist(blocks) == -1:
+                                self.rect.move_ip(new_dir)
+                                need_move = False
+                                break
+                    else:
+                        self.find_new_dir(blocks)
 
             if self.rect.top >= window.get_height():
                 self.kill()
@@ -103,8 +119,8 @@ class Monster(pygame.sprite.Sprite):
 class FastMonster(Monster):
     def __init__(self, move_time):
         Monster.__init__(self, move_time)
-        self.image = pygame.Surface((20, 20))
-        self.image_inside = pygame.Surface((18, 18))
+        self.image = pygame.Surface((20, 20)).convert()
+        self.image_inside = pygame.Surface((18, 18)).convert()
         self.image_inside.fill((255, 255, 0))
         self.image.blit(self.image_inside, (1, 1))
         self.rect = pygame.Rect(self.pos, (40, 40))
@@ -123,56 +139,27 @@ class Projectile(pygame.sprite.Sprite):
         self.damage = damage
         self.rect = pygame.Rect(self.pos, self.image.get_size())
 
-        self.x_speed = -int((self.rect.centerx - self.target.rect.centerx)/self.speed)
-        self.y_speed = -int((self.rect.centery - self.target.rect.centery)/self.speed)
+        self.angle = math.atan2((self.target.rect.centery-self.rect.centery),
+                                (self.target.rect.centerx-self.rect.centerx))
+        self.x_speed = math.cos(self.angle)*self.speed
+        self.y_speed = math.sin(self.angle)*self.speed
 
     def update(self, monsters, screen):
         if self.target is None:
             self.kill()
             return
 
-        self.x_speed = -int((self.rect.centerx - self.target.rect.centerx)/self.speed)
-        self.y_speed = -int((self.rect.centery - self.target.rect.centery)/self.speed)
-
-        width_calc = self.target.image.get_width()/2 + self.image.get_width()
-        height_calc = self.target.image.get_height()/2 + self.image.get_height()
+        # Calculates where the projectile needs to go
+        self.angle = math.atan2((self.target.rect.centery-self.rect.centery),
+                                (self.target.rect.centerx-self.rect.centerx))
+        self.x_speed = math.cos(self.angle)*self.speed
+        self.y_speed = math.sin(self.angle)*self.speed
 
         # If the bullet is within range, it hit the target
-        if abs(self.rect.centerx - self.target.rect.centerx) <= width_calc + 10 and abs(self.rect.centery - self.target.rect.centery) <= height_calc + 10:
-                self.target.health -= self.damage
+        if abs(self.rect.centerx - self.target.rect.centerx) <= 10:
+            if abs(self.rect.centery - self.target.rect.centery) <= 10:
+                self.do_damage(monsters)
                 self.kill()
-        else:
-            self.rect.move_ip((self.x_speed, self.y_speed))
-
-        if not screen.contains(self.rect):
-            self.kill()
-
-
-class MortarShell(Projectile):
-    def __init__(self, pos, target, image, speed, damage):
-        Projectile.__init__(self, pos, target, image, speed, damage)
-        self.radius = 50
-
-    def update(self, monsters, screen):
-        if self.target is None:
-            self.kill()
-            return
-
-        self.x_speed = -int((self.rect.centerx - self.target.rect.centerx)/self.speed)
-        self.y_speed = -int((self.rect.centery - self.target.rect.centery)/self.speed)
-
-        width_calc = self.target.image.get_width()/2 + self.image.get_width()
-        height_calc = self.target.image.get_height()/2 + self.image.get_height()
-
-        # If the bullet is within range, it hit the target
-        if abs(self.rect.centerx - self.target.rect.centerx) <= width_calc:
-            if abs(self.rect.centery - self.target.rect.centery) <= height_calc:
-
-                # Splash damage
-                for monster in monsters:
-                    if pygame.sprite.collide_circle(self, monster):
-                        self.target.health -= self.damage
-                        self.kill()
             else:
                 self.rect.move_ip((self.x_speed, self.y_speed))
         else:
@@ -181,11 +168,28 @@ class MortarShell(Projectile):
         if not screen.contains(self.rect):
             self.kill()
 
+    def do_damage(self, monsters):
+        for monster in monsters:
+            if monster == self.target:
+                monster.health -= self.damage
+                break
+
+
+class MortarShell(Projectile):
+    def __init__(self, pos, target, image, speed, damage):
+        Projectile.__init__(self, pos, target, image, speed, damage)
+        self.radius = 50
+
+    def do_damage(self, monsters):
+        for monster in monsters:
+            if pygame.sprite.collide_circle(self, monster):
+                monster.health -= self.damage
+
 
 class TowerFrame():
     def __init__(self, tower):
         self.tower = tower
-        self.image = pygame.Surface((200, 300))
+        self.image = pygame.Surface((200, 300)).convert()
         self.image.fill((200, 115, 0))
         self.s_width = self.image.get_width()
         self.s_height = self.image.get_height()
@@ -243,7 +247,7 @@ class Tower(pygame.sprite.Sprite):
         self.rect = pygame.Rect(self.pos, self.image.get_size())
         self.projectile = pygame.Surface((10, 10))
         self.projectile.fill((0, 255, 255))
-        self.projectile_speed = 20
+        self.projectile_speed = 5
         self.projectiles = pygame.sprite.Group()
 
         self.radius = 200
@@ -256,6 +260,8 @@ class Tower(pygame.sprite.Sprite):
         self.target = None
         self.last_shot = time.time()
 
+        self.image.convert()
+        self.projectile.convert()
         self.frame = TowerFrame(self)
 
     def update(self, monsters, screen, screen_rect):
@@ -298,7 +304,7 @@ class MortarTower(Tower):
         self.image.fill((0, 0, 255))
         self.projectile = pygame.Surface((15, 15))
         self.projectile.fill((255, 150, 0))
-        self.projectile_speed = 30
+        self.projectile_speed = 3
 
         self.radius = 400
         self.fire_rate = 3
@@ -306,6 +312,8 @@ class MortarTower(Tower):
         self.description = "A long-range tower that fires mortars which " \
                            "explode on impact, dealing damage to all nearby enemies."
         self.cost = 75
+
+        self.frame = TowerFrame(self)
 
     def shoot(self):
         if time.time() - self.last_shot >= self.fire_rate:
@@ -330,14 +338,16 @@ class RapidTower(Tower):
         self.description = "A tower with moderate range and very quick attack speed."
         self.cost = 50
 
+        self.frame = TowerFrame(self)
+
 
 class TowerShopTab():
     def __init__(self, tower, pos):
         self.pos = pos
         self.tower = tower
-        self.surface_inside = pygame.Surface((123, 38))
+        self.surface_inside = pygame.Surface((123, 38)).convert()
         self.surface_inside.fill((100, 100, 100))
-        self.surface = pygame.Surface((125, 40))
+        self.surface = pygame.Surface((125, 40)).convert()
         self.rect = pygame.Rect(self.pos, self.surface.get_size())
         self.font = pygame.font.Font(None, 15)
         self.info_tab = tower.frame.image
@@ -356,19 +366,26 @@ class Game():
         self.clock = pygame.time.Clock()
         self.game_window = pygame.display.set_mode((1000, 700))
         self.game_window.fill((0, 255, 255))
-        self.game_surface = pygame.Surface((1000, 560))
+        self.game_surface = pygame.Surface((1000, 560)).convert()
         self.game_surface_rect = pygame.Rect((0, 0), self.game_surface.get_size())
-        self.bottom_bar = pygame.Surface((990, 130))
+        self.bottom_bar = pygame.Surface((990, 130)).convert()
         self.bottom_bar.fill((190, 115, 0))
         self.bottom_bar_rect = pygame.Rect((0, 560), (1000, 140))
-        self.bottom_bar_outline = pygame.Surface((1000, 140))
+        self.bottom_bar_outline = pygame.Surface((1000, 140)).convert()
         self.font = pygame.font.Font(None, 26)
+
+        # Creates the game borders, the parts that users can't create a path in
+        self.border_list = [pygame.Rect((0, 0), (self.game_surface.get_width(), 40)),
+                            pygame.Rect((0, 0), (40, self.game_surface.get_height())),
+                            pygame.Rect((0, self.game_surface.get_height()-40), (self.game_surface.get_width(), 40)),
+                            pygame.Rect((self.game_surface.get_width()-40, 0), (40, self.game_surface.get_height()))]
+
         self.all_towers = [Tower, MortarTower, RapidTower]
         self.tower_dic = {"Tower": Tower, "Mortar Tower": MortarTower, "Rapid-fire Tower": RapidTower}
         self.core_health = 100
         self.money = 200
-        self.blocks = self.gen_blocks()
-        self.hidden_blocks = pygame.sprite.Group()
+        self.blocks = pygame.sprite.Group()
+        self.hidden_blocks = self.gen_blocks()
         self.monsters = pygame.sprite.Group()
         self.towers = pygame.sprite.Group()
         self.playing = True
@@ -380,7 +397,7 @@ class Game():
         self.main()
 
     def main(self):
-
+        # Creating the start button
         start_button = pygame.Surface((130, 130))
         start_button_rect = pygame.Rect((870, 560), (130, 130))
         start_button.fill((0, 255, 0))
@@ -389,12 +406,22 @@ class Game():
                                                                       start_button.get_height()/2 -
                                                                       self.font.get_height()))
 
+        # Adding towers to the shop
         tower_shop_list = []
         x_val = 10
         for tower in self.all_towers:
             tower_shop_list.append(TowerShopTab(tower((0, 0)), (x_val, 50 + 560)))
             x_val += 133
 
+        # Coloring the borders
+        for block in self.hidden_blocks:
+            if self.collide_border(block.pos):
+                block.is_shown = True
+                self.hidden_blocks.remove(block)
+                self.blocks.add(block)
+                block.image.fill((25, 25, 25))
+
+        # Before-loop values
         tower_info = None
         cur_tower = Tower
 
@@ -418,11 +445,11 @@ class Game():
 
                     # Left mouse button
                     if mouse_button[0] == 1:
-                        # Collide with tower in shop?
+                        # Collide with tower in the shop?
                         for tower in tower_shop_list:
                             if tower.rect.collidepoint(self.mouse_pos):
                                 cur_tower = self.tower_dic[tower.tower.name]
-                                print "Changing Tower"
+                                print "Changing Tower to: " + str(cur_tower)
                                 break
                         else:
                             # Collide with play_button?
@@ -442,29 +469,32 @@ class Game():
                                         break
                                 else:
                                     # Collide with a block?
-                                    tower_info = None
-                                    for block in self.blocks:
-                                        if block.rect.collidepoint((self.mouse_x, self.mouse_y)):
-                                            self.blocks.remove(block)
-                                            self.hidden_blocks.add(block)
+                                    if not self.collide_border(self.mouse_pos):
+                                        tower_info = None
+                                        for block in self.blocks:
+                                            if block.rect.collidepoint(self.mouse_pos):
+                                                self.blocks.remove(block)
+                                                self.hidden_blocks.add(block)
 
                     # Middle mouse button
-                    elif mouse_button[1] == 1:
-                        for tower in self.towers:
-                            if tower.rect.collidepoint((self.mouse_x, self.mouse_y)):
-                                tower.kill()
-                                break
-                        else:
-                            for block in self.blocks:
-                                if block.rect.collidepoint((self.mouse_x, self.mouse_y)):
-                                    self.towers.add(cur_tower((block.rect.x, block.rect.y)))
+                    elif mouse_button[1] == 1 or keys[pygame.K_t]:
+                        if not self.collide_border(self.mouse_pos):
+                            for tower in self.towers:
+                                if tower.rect.collidepoint((self.mouse_x, self.mouse_y)):
+                                    tower.kill()
+                                    break
+                            else:
+                                for block in self.blocks:
+                                    if block.rect.collidepoint((self.mouse_x, self.mouse_y)):
+                                        self.towers.add(cur_tower((block.rect.x, block.rect.y)))
 
                     # Right mouse button
                     elif mouse_button[2] == 1:
-                        for block in self.hidden_blocks:
-                            if block.rect.collidepoint((self.mouse_x, self.mouse_y)):
-                                self.hidden_blocks.remove(block)
-                                self.blocks.add(block)
+                        if not self.collide_border(self.mouse_pos):
+                            for block in self.hidden_blocks:
+                                if block.rect.collidepoint((self.mouse_x, self.mouse_y)):
+                                    self.hidden_blocks.remove(block)
+                                    self.blocks.add(block)
 
             # Wave is over if all monsters are dead
             if len(self.monsters) == 0:
@@ -499,6 +529,13 @@ class Game():
                                                                tower_info.frame.image.get_height()/2))
             pygame.display.flip()
 
+    # True if the point is in the map_border, false if not
+    def collide_border(self, point):
+        for border in self.border_list:
+            if border.collidepoint(point):
+                return True
+        return False
+
     @staticmethod
     def gen_blocks():
         ret_group = pygame.sprite.Group()
@@ -507,7 +544,8 @@ class Game():
         for y in range(14):
             x_value = 0
             for x in range(25):
-                ret_group.add(Block((x_value, y_value)))
+                if (x_value, y_value) not in [(80, 0), (880, 520)]:
+                    ret_group.add(Block((x_value, y_value)))
                 x_value += 40
             y_value += 40
         return ret_group
@@ -519,7 +557,7 @@ class Game():
         # Randomly selects monsters to spawn
         for x in range(number):
             add_monster = random.choice([Monster, FastMonster])
-            ret_group.add(add_monster(random.uniform(0.01, 5.00)))
+            ret_group.add(add_monster(random.randint(1, 5)))
 
         return ret_group
 

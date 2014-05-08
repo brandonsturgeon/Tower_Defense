@@ -24,6 +24,7 @@ class Block(pygame.sprite.Sprite):
     def __init__(self, pos):
         pygame.sprite.Sprite.__init__(self)
         self.pos = pos
+        self.grid_pos = tuple([x/40 for x in self.pos])
         self.image = pygame.Surface((40, 40)).convert()
         self.color = (125, 125, 125)
         self.image.fill(self.color)
@@ -33,8 +34,9 @@ class Block(pygame.sprite.Sprite):
 
 # Base Monster class
 class Monster(pygame.sprite.Sprite):
-    def __init__(self, move_time):
+    def __init__(self, move_time, nodes):
         pygame.sprite.Sprite.__init__(self)
+        self.nodes = nodes
         self.move_time = move_time
         self.spawn_time = time.time()
         self.image = pygame.Surface((40, 40)).convert()
@@ -43,46 +45,17 @@ class Monster(pygame.sprite.Sprite):
         self.image.blit(self.image_inside, (1, 1))
         self.pos = (80, 0)
         self.rect = pygame.Rect(self.pos, self.image.get_size())
-        self.direction = "DOWN"
         self.speed = 1
-        self.dir_dic = {"UP": (0, -1), "DOWN": (0, 1),
-                        "LEFT": (-1, 0), "RIGHT": (1, 0)}
-        self.dir_opps = {"UP": "DOWN",
-                         "LEFT": "RIGHT"}
+        self.diag_speed = 2
+        self.target_pos = (880, 560)
         self.value = 1
         self.health = 100
+
 
     def update(self, blocks, window):
         if time.time() - self.spawn_time >= self.move_time:
             blocks = [x.rect for x in blocks]
             need_move = True
-
-            # Calculates the maximum pixels the monster can move before hitting a wall
-            while need_move:
-                for speed in list(reversed(range(0, self.speed+1))):
-                    if speed != 0:
-                        angle = math.atan2((520-self.rect.centery),
-                                           (980-self.rect.centerx))
-                        x_speed = math.cos(angle)*speed
-                        y_speed = math.sin(angle)*speed
-                        new_dir = (x_speed, y_speed)
-                        print new_dir
-                        temp_rect = self.rect.copy()
-                        if temp_rect.move(new_dir).collidelist(blocks) == -1:
-                            self.rect.move_ip(new_dir)
-                            need_move = False
-                            break
-                else:
-                    for speed2 in list(reversed(range(0, self.speed+1))):
-                        if speed2 != 0:
-                            new_dir = tuple([x*speed2 for x in self.dir_dic[self.direction]])
-                            temp_rect = self.rect.copy()
-                            if temp_rect.move(new_dir).collidelist(blocks) == -1:
-                                self.rect.move_ip(new_dir)
-                                need_move = False
-                                break
-                    else:
-                        self.find_new_dir(blocks)
 
             if self.rect.top >= window.get_height():
                 self.kill()
@@ -102,29 +75,19 @@ class Monster(pygame.sprite.Sprite):
 
     # Finds a new direction for the monster to go if they hit a wall
     def find_new_dir(self, blocks):
-        possible_dirs = [x for x in self.dir_dic.keys() if x != self.direction]
-        for k, v in self.dir_opps.items():
-            if k == self.direction:
-                possible_dirs.remove(v)
-            if v == self.direction:
-                possible_dirs.remove(k)
-
-        for poss in possible_dirs:
-            if self.rect.move(self.dir_dic[poss]).collidelist(blocks) != -1:
-                possible_dirs.remove(poss)
-
-        self.direction = random.choice(possible_dirs)
+        pass
 
 
 class FastMonster(Monster):
-    def __init__(self, move_time):
-        Monster.__init__(self, move_time)
+    def __init__(self, move_time, nodes):
+        Monster.__init__(self, move_time, nodes)
         self.image = pygame.Surface((20, 20)).convert()
         self.image_inside = pygame.Surface((18, 18)).convert()
         self.image_inside.fill((255, 255, 0))
         self.image.blit(self.image_inside, (1, 1))
         self.rect = pygame.Rect(self.pos, (40, 40))
         self.speed = 2
+        self.diag_speed = 3
         self.value = 0.5
         self.health = 50
 
@@ -242,6 +205,7 @@ class Tower(pygame.sprite.Sprite):
 
         self.name = "Tower"
         self.pos = pos
+        self.grid_pos = tuple([x/40 for x in self.pos])
         self.image = pygame.Surface((40, 40))
         self.image.fill((255, 0, 0))
         self.rect = pygame.Rect(self.pos, self.image.get_size())
@@ -384,6 +348,7 @@ class Game():
         self.tower_dic = {"Tower": Tower, "Mortar Tower": MortarTower, "Rapid-fire Tower": RapidTower}
         self.core_health = 100
         self.money = 200
+        self.grid = []
         self.blocks = pygame.sprite.Group()
         self.hidden_blocks = self.gen_blocks()
         self.monsters = pygame.sprite.Group()
@@ -416,6 +381,7 @@ class Game():
         # Coloring the borders
         for block in self.hidden_blocks:
             if self.collide_border(block.pos):
+                self.grid[block.grid_pos[0]][block.grid_pos[1]] = False
                 block.is_shown = True
                 self.hidden_blocks.remove(block)
                 self.blocks.add(block)
@@ -464,8 +430,10 @@ class Game():
                                     if t.rect.collidepoint(self.mouse_pos):
                                         if tower_info == t:
                                             tower_info = None
+                                            self.grid[t.grid_pos[0]][t.grid_pos[1]] = True
                                         else:
                                             tower_info = t
+                                            self.grid[t.grid_pos[0]][t.grid_pos[1]] = False
                                         break
                                 else:
                                     # Collide with a block?
@@ -475,18 +443,21 @@ class Game():
                                             if block.rect.collidepoint(self.mouse_pos):
                                                 self.blocks.remove(block)
                                                 self.hidden_blocks.add(block)
+                                                self.grid[block.grid_pos[0]][block.grid_pos[1]] = True
 
                     # Middle mouse button
                     elif mouse_button[1] == 1 or keys[pygame.K_t]:
                         if not self.collide_border(self.mouse_pos):
                             for tower in self.towers:
                                 if tower.rect.collidepoint((self.mouse_x, self.mouse_y)):
+                                    self.grid[tower.grid_pos[0]][tower.grid_pos[1]] = True
                                     tower.kill()
                                     break
                             else:
                                 for block in self.blocks:
                                     if block.rect.collidepoint((self.mouse_x, self.mouse_y)):
                                         self.towers.add(cur_tower((block.rect.x, block.rect.y)))
+                                        self.grid[block.grid_pos[0]][block.grid_pos[1]] = False
 
                     # Right mouse button
                     elif mouse_button[2] == 1:
@@ -495,6 +466,7 @@ class Game():
                                 if block.rect.collidepoint((self.mouse_x, self.mouse_y)):
                                     self.hidden_blocks.remove(block)
                                     self.blocks.add(block)
+                                    self.grid[block.grid_pos[0]][block.grid_pos[1]] = False
 
             # Wave is over if all monsters are dead
             if len(self.monsters) == 0:
@@ -536,18 +508,22 @@ class Game():
                 return True
         return False
 
-    @staticmethod
-    def gen_blocks():
+    def gen_blocks(self):
         ret_group = pygame.sprite.Group()
-
         y_value = 0
         for y in range(14):
             x_value = 0
+            row = []
             for x in range(25):
                 if (x_value, y_value) not in [(80, 0), (880, 520)]:
                     ret_group.add(Block((x_value, y_value)))
+                    row.append(True)
+                else:
+                    row.append(False)
                 x_value += 40
+            self.grid.append(row)
             y_value += 40
+        print self.grid
         return ret_group
 
     @staticmethod

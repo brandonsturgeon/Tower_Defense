@@ -21,7 +21,7 @@ class OutlinedSurface():
 
 
 class Block(pygame.sprite.Sprite):
-    def __init__(self, pos):
+    def __init__(self, pos, is_end):
         pygame.sprite.Sprite.__init__(self)
         self.pos = pos
         self.grid_pos = tuple([x/40 for x in self.pos])
@@ -30,6 +30,21 @@ class Block(pygame.sprite.Sprite):
         self.image.fill(self.color)
         self.rect = pygame.Rect(self.pos, self.image.get_size())
         self.is_shown = False
+        self.neighbors = set()
+        self.is_end = is_end
+
+    def get_neighbors(self, lst):
+        for b in lst:
+            for a in b:
+                if b.index(a) != 0:
+                    self.neighbors.add(b[b.index(a)-1])
+                if b.index(a) != len(b)-1:
+                    self.neighbors.add(b[b.index(a)+1])
+                if lst.index(b) != 0:
+                    self.neighbors.add(lst[lst.index(b)-1][b.index(a)])
+                if lst.index(b) != len(lst)-1:
+                    self.neighborsa.add(lst[lst.index(b)+1][b.index(a)])
+        print self.neighbors
 
 
 # Base Monster class
@@ -348,12 +363,12 @@ class Game():
         self.tower_dic = {"Tower": Tower, "Mortar Tower": MortarTower, "Rapid-fire Tower": RapidTower}
         self.core_health = 100
         self.money = 200
-        self.grid = []
         self.blocks = pygame.sprite.Group()
         self.hidden_blocks = self.gen_blocks()
         self.monsters = pygame.sprite.Group()
         self.towers = pygame.sprite.Group()
         self.playing = True
+        self.grid = []
         self.can_interact = True
         self.mouse_x = 0
         self.mouse_y = 0
@@ -515,15 +530,17 @@ class Game():
             x_value = 0
             row = []
             for x in range(25):
-                if (x_value, y_value) not in [(80, 0), (880, 520)]:
-                    ret_group.add(Block((x_value, y_value)))
-                    row.append(True)
+                if (x_value, y_value) != (880, 520):
+                    b = Block((x_value, y_value), False)
                 else:
-                    row.append(False)
+                    b = Block((x_value, y_value), True)
+                ret_group.add(b)
                 x_value += 40
             self.grid.append(row)
             y_value += 40
-        print self.grid
+
+        for block in ret_group:
+            block.get_neighbors(ret_group)
         return ret_group
 
     @staticmethod

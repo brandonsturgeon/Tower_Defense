@@ -9,7 +9,7 @@ import math
 
 
 class OutlinedSurface():
-    def __init__(self, surface, offset, bgcolor=(0, 0, 0)):
+    def __init__(self, surface, offset, bgcolor=(255, 255, 255)):
         self.inside_surface = surface
         self.offset = offset
         self.bgcolor = bgcolor
@@ -31,41 +31,52 @@ class Block(pygame.sprite.Sprite):
         self.rect = pygame.Rect(self.pos, self.image.get_size())
         self.is_shown = False
         self.neighbors = set()
+        self.path_value = 0
         self.is_end = is_end
 
     def get_neighbors(self, lst):
         for b in lst:
-            for a in b:
+            if self in b:
+                a = self
                 if b.index(a) != 0:
-                    self.neighbors.add(b[b.index(a)-1])
+                    to_add = b[b.index(a)-1]
+                    if to_add != self and not to_add.is_shown:
+                        self.neighbors.add(b[b.index(a)-1])
+
                 if b.index(a) != len(b)-1:
-                    self.neighbors.add(b[b.index(a)+1])
+                    to_add = b[b.index(a)+1]
+                    if to_add != self and not to_add.is_shown:
+                        self.neighbors.add(b[b.index(a)+1])
+
                 if lst.index(b) != 0:
-                    self.neighbors.add(lst[lst.index(b)-1][b.index(a)])
+                    to_add = lst[lst.index(b)-1][b.index(a)]
+                    if to_add != self and not to_add.is_shown:
+                        self.neighbors.add(lst[lst.index(b)-1][b.index(a)])
+
                 if lst.index(b) != len(lst)-1:
-                    self.neighborsa.add(lst[lst.index(b)+1][b.index(a)])
-        print self.neighbors
+                    to_add = lst[lst.index(b)+1][b.index(a)]
+                    if to_add != self and not to_add.is_shown:
+                        self.neighbors.add(lst[lst.index(b)+1][b.index(a)])
 
 
 # Base Monster class
 class Monster(pygame.sprite.Sprite):
-    def __init__(self, move_time, nodes):
+    def __init__(self, move_time):
         pygame.sprite.Sprite.__init__(self)
-        self.nodes = nodes
+        self.nodes = None
         self.move_time = move_time
         self.spawn_time = time.time()
         self.image = pygame.Surface((40, 40)).convert()
         self.image_inside = pygame.Surface((38, 38)).convert()
         self.image_inside.fill((0, 255, 0))
         self.image.blit(self.image_inside, (1, 1))
-        self.pos = (80, 0)
+        self.pos = (80, 40)
         self.rect = pygame.Rect(self.pos, self.image.get_size())
         self.speed = 1
         self.diag_speed = 2
         self.target_pos = (880, 560)
         self.value = 1
         self.health = 100
-
 
     def update(self, blocks, window):
         if time.time() - self.spawn_time >= self.move_time:
@@ -94,8 +105,8 @@ class Monster(pygame.sprite.Sprite):
 
 
 class FastMonster(Monster):
-    def __init__(self, move_time, nodes):
-        Monster.__init__(self, move_time, nodes)
+    def __init__(self, move_time):
+        Monster.__init__(self, move_time)
         self.image = pygame.Surface((20, 20)).convert()
         self.image_inside = pygame.Surface((18, 18)).convert()
         self.image_inside.fill((255, 255, 0))
@@ -363,12 +374,13 @@ class Game():
         self.tower_dic = {"Tower": Tower, "Mortar Tower": MortarTower, "Rapid-fire Tower": RapidTower}
         self.core_health = 100
         self.money = 200
+        self.grid = []
+        self.end_block = None
         self.blocks = pygame.sprite.Group()
         self.hidden_blocks = self.gen_blocks()
         self.monsters = pygame.sprite.Group()
         self.towers = pygame.sprite.Group()
         self.playing = True
-        self.grid = []
         self.can_interact = True
         self.mouse_x = 0
         self.mouse_y = 0
@@ -396,7 +408,6 @@ class Game():
         # Coloring the borders
         for block in self.hidden_blocks:
             if self.collide_border(block.pos):
-                self.grid[block.grid_pos[0]][block.grid_pos[1]] = False
                 block.is_shown = True
                 self.hidden_blocks.remove(block)
                 self.blocks.add(block)
@@ -445,10 +456,8 @@ class Game():
                                     if t.rect.collidepoint(self.mouse_pos):
                                         if tower_info == t:
                                             tower_info = None
-                                            self.grid[t.grid_pos[0]][t.grid_pos[1]] = True
                                         else:
                                             tower_info = t
-                                            self.grid[t.grid_pos[0]][t.grid_pos[1]] = False
                                         break
                                 else:
                                     # Collide with a block?
@@ -493,6 +502,7 @@ class Game():
 
             # Game_Surface blitting
             self.blocks.draw(self.game_surface)
+            self.hidden_blocks.draw(self.game_surface)
             for monster in self.monsters:
                 self.core_health -= monster.update(self.blocks, self.game_surface)
             self.monsters.draw(self.game_surface)
@@ -530,29 +540,60 @@ class Game():
             x_value = 0
             row = []
             for x in range(25):
-                if (x_value, y_value) != (880, 520):
+                if (x_value, y_value) != (840, 480):
                     b = Block((x_value, y_value), False)
                 else:
                     b = Block((x_value, y_value), True)
+                    self.end_block = b
                 ret_group.add(b)
+                row.append(b)
                 x_value += 40
             self.grid.append(row)
             y_value += 40
 
-        for block in ret_group:
-            block.get_neighbors(ret_group)
+        for b in ret_group:
+            b.get_neighbors(self.grid)
         return ret_group
 
-    @staticmethod
-    def gen_monsters(number, wave):
+    def gen_path(self):
+        is_pathing = True
+        the_blocks = [self.end_block]
+        checked = [self.end_block]
+        the_val = 1
+        font = pygame.font.Font(None, 30)
+        while is_pathing:
+            if len(checked) >= len(self.hidden_blocks):
+                break
+
+            for block in the_blocks:
+                for neighbor in block.neighbors:
+                    if neighbor not in checked and neighbor not in the_blocks:
+                        if neighbor.is_shown is False:
+                            neighbor.path_value = the_val
+                            neighbor.image = OutlinedSurface(pygame.transform.scale(font.render(str(neighbor.path_value), 1, (0, 0, 0)), (38, 38)), 1).surface
+                            checked.append(neighbor)
+                            the_blocks.append(neighbor)
+                the_val += 1
+
+            self.game_window.fill((0, 0, 0))
+            self.game_surface.fill((255, 255, 255))
+            self.blocks.draw(self.game_surface)
+            self.hidden_blocks.draw(self.game_surface)
+            self.game_window.blit(self.game_surface, (0, 0))
+            pygame.display.flip()
+        print "Out"
+
+    def gen_monsters(self, number, wave):
         ret_group = pygame.sprite.Group()
 
+        self.gen_path()
         # Randomly selects monsters to spawn
         for x in range(number):
             add_monster = random.choice([Monster, FastMonster])
             ret_group.add(add_monster(random.randint(1, 5)))
 
         return ret_group
+
 
 if __name__ == "__main__":
     Game()

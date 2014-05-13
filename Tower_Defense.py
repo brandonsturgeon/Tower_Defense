@@ -70,6 +70,7 @@ class Monster(pygame.sprite.Sprite):
     def __init__(self, move_time, nodes):
         pygame.sprite.Sprite.__init__(self)
         self.nodes = nodes
+        self.orig_nodes = nodes
         self.move_time = move_time
         self.spawn_time = time.time()
         self.image = pygame.Surface((40, 40)).convert()
@@ -78,41 +79,40 @@ class Monster(pygame.sprite.Sprite):
         self.image.blit(self.image_inside, (1, 1))
         self.pos = (80, 40)
         self.rect = pygame.Rect(self.pos, self.image.get_size())
-        self.speed = 30
+        self.speed = 5
         self.diag_speed = 2
         self.target_pos = (880, 560)
         self.value = 1
         self.health = 100
         self.counter = 0
-        self.cur_node = self.nodes.pop(0)
+        self.cur_node = self.nodes[0]
         self.the_dir = (0, 0)
 
     def update(self, blocks, window):
+
         if time.time() - self.spawn_time >= self.move_time:
-            if len(self.nodes) <= 1:
+            if len(self.nodes) < 1:
                 self.kill()
+                return self.value
             else:
-                blocks = [x.rect for x in blocks if x not in self.nodes]
+                blocks_rect = [x.rect for x in blocks if not x.is_path]
+                if self.rect in blocks_rect:
+                    blocks_rect.remove(self.rect)
 
                 # Figuring direction
                 if self.nodes[0].rect.x > self.cur_node.rect.x:
                     self.the_dir = (1, 0)
-                elif self.nodes[0].rect.x < self.cur_node_rect.x:
+                elif self.nodes[0].rect.x < self.cur_node.rect.x:
                     self.the_dir = (-1, 0)
-                elif self.nodes[0].rect.y > self.cur_node_rect.y:
+                elif self.nodes[0].rect.y > self.cur_node.rect.y:
                     self.the_dir = (0, 1)
-                elif self.nodes[0].rect.y < self.cur_node_rect.y:
+                elif self.nodes[0].rect.y < self.cur_node.rect.y:
                     self.the_dir = (0, -1)
-                for speed in list(reversed(range(0, self.speed+1))):
-                    if speed != 0:
-                        new_dir = tuple([x*speed for x in self.the_dir])
-                        temp_rect = self.rect.copy()
-                        if temp_rect.move(new_dir).collidelist(blocks) == -1:
-                            self.rect.move_ip(new_dir)
-                            need_move = False
-                            break
 
-                self.rect.move_ip((x_speed, y_speed))
+                self.rect.move_ip(self.the_dir)
+                if self.rect == self.nodes[0].rect:
+                    self.cur_node = self.nodes.pop(0)
+                    print "pop"
 
                 if self.rect.top >= window.get_height():
                     self.kill()
@@ -545,7 +545,11 @@ class Game():
                     self.game_surface.blit(hidden.image, hidden.pos)
 
             for monster in self.monsters:
-                self.core_health -= monster.update(self.blocks, self.game_surface)
+                new_gr = pygame.sprite.Group()
+                new_gr.add(self.blocks)
+                new_gr.add(self.hidden_blocks)
+                self.core_health -= monster.update(new_gr, self.game_surface)
+
             self.monsters.draw(self.game_surface)
             self.towers.update(self.monsters, self.game_surface, self.game_surface_rect)
             self.towers.draw(self.game_surface)
@@ -600,6 +604,13 @@ class Game():
     # Generates the pathing values for all blocks on the screen
     def gen_values(self):
         is_pathing = True
+        for reset in self.hidden_blocks:
+            reset.path_value = 0
+            reset.is_path = False
+
+        for reset in self.blocks:
+            reset.path_value = 0
+            reset.is_path = False
         the_blocks = [self.end_block]
         checked = [self.end_block]
         while is_pathing:
@@ -618,13 +629,15 @@ class Game():
     # Generates the shortest path through the blocks and gives it to the monsters
     def gen_path(self):
         ret_path = []
+        checked = set()
         for b in self.hidden_blocks:
             if b.pos == (80, 40):
+                b.is_path = True
                 ret_path.append(b)
+                checked.add(b)
                 break
 
         finding_path = True
-        checked = set()
         while finding_path:
             cur_neighbors = ret_path[-1].neighbors
 
@@ -639,7 +652,9 @@ class Game():
                         if neighbor.path_value == 0:
                             finding_path = False
                         break
-
+        for block in ret_path:
+            print block.rect,
+        print ""
         return ret_path
 
     # Generates the wave of monsters
@@ -647,12 +662,11 @@ class Game():
         ret_group = pygame.sprite.Group()
 
         self.gen_values()
-        path = self.gen_path()
 
         # Randomly selects which monsters to spawn
         for x in range(number):
             add_monster = random.choice([Monster])
-            ret_group.add(add_monster(random.randint(1, 5), path))
+            ret_group.add(add_monster(random.randint(1, 5), self.gen_path()))
 
         return ret_group
 

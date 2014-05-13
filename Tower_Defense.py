@@ -39,21 +39,26 @@ class Block(pygame.sprite.Sprite):
         for b in lst:
             if self in b:
                 a = self
+
+                # Left
                 if b.index(a) != 0:
                     to_add = b[b.index(a)-1]
                     if to_add != self and not to_add.is_shown:
                         self.neighbors.add(b[b.index(a)-1])
 
+                # Right
                 if b.index(a) != len(b)-1:
                     to_add = b[b.index(a)+1]
                     if to_add != self and not to_add.is_shown:
                         self.neighbors.add(b[b.index(a)+1])
 
+                # Above
                 if lst.index(b) != 0:
                     to_add = lst[lst.index(b)-1][b.index(a)]
                     if to_add != self and not to_add.is_shown:
                         self.neighbors.add(lst[lst.index(b)-1][b.index(a)])
 
+                # Below
                 if lst.index(b) != len(lst)-1:
                     to_add = lst[lst.index(b)+1][b.index(a)]
                     if to_add != self and not to_add.is_shown:
@@ -79,25 +84,36 @@ class Monster(pygame.sprite.Sprite):
         self.value = 1
         self.health = 100
         self.counter = 0
+        self.cur_node = self.nodes.pop(0)
+        self.the_dir = (0, 0)
 
     def update(self, blocks, window):
         if time.time() - self.spawn_time >= self.move_time:
-            blocks = [x.rect for x in blocks]
-            need_move = True
             if len(self.nodes) <= 1:
                 self.kill()
             else:
+                blocks = [x.rect for x in blocks if x not in self.nodes]
 
-
-                if self.counter == self.speed:
-                    self.counter = 0
-                if self.counter == 0:
-                    cur_pos = self.nodes.pop(0)
-                x_speed = (self.nodes[0].rect.x - cur_pos.rect.x) / self.speed
-                y_speed = (self.nodes[0].rect.y - cur_pos.rect.y) / self.speed
+                # Figuring direction
+                if self.nodes[0].rect.x > self.cur_node.rect.x:
+                    self.the_dir = (1, 0)
+                elif self.nodes[0].rect.x < self.cur_node_rect.x:
+                    self.the_dir = (-1, 0)
+                elif self.nodes[0].rect.y > self.cur_node_rect.y:
+                    self.the_dir = (0, 1)
+                elif self.nodes[0].rect.y < self.cur_node_rect.y:
+                    self.the_dir = (0, -1)
+                for speed in list(reversed(range(0, self.speed+1))):
+                    if speed != 0:
+                        new_dir = tuple([x*speed for x in self.the_dir])
+                        temp_rect = self.rect.copy()
+                        if temp_rect.move(new_dir).collidelist(blocks) == -1:
+                            self.rect.move_ip(new_dir)
+                            need_move = False
+                            break
 
                 self.rect.move_ip((x_speed, y_speed))
-                self.counter += 1
+
                 if self.rect.top >= window.get_height():
                     self.kill()
                     return self.value
@@ -113,7 +129,6 @@ class Monster(pygame.sprite.Sprite):
                 if self.health <= 0:
                     self.kill()
         return 0
-
 
 
 class FastMonster(Monster):
@@ -176,6 +191,7 @@ class Projectile(pygame.sprite.Sprite):
                 break
 
 
+# Explodes on impact dealing damage in 50 radius
 class MortarShell(Projectile):
     def __init__(self, pos, target, image, speed, damage):
         Projectile.__init__(self, pos, target, image, speed, damage)
@@ -187,6 +203,7 @@ class MortarShell(Projectile):
                 monster.health -= self.damage
 
 
+# Creates a frame full of information for the selected tower
 class TowerFrame():
     def __init__(self, tower):
         self.tower = tower
@@ -343,6 +360,7 @@ class RapidTower(Tower):
         self.frame = TowerFrame(self)
 
 
+# A tab for each tower down at the bottom
 class TowerShopTab():
     def __init__(self, tower, pos):
         self.pos = pos
@@ -362,6 +380,7 @@ class TowerShopTab():
         return self.surface
 
 
+# Main game class
 class Game():
     def __init__(self):
         pygame.init()
@@ -398,6 +417,7 @@ class Game():
         self.mouse_y = 0
         self.mouse_pos = (self.mouse_x, self.mouse_y)
         self.wave = 0
+
         self.main()
 
     def main(self):
@@ -512,6 +532,7 @@ class Game():
                     b.image.fill(b.color)
                     a.is_path = False
                     a.image.fill(a.color)
+
             self.game_window.fill((255, 255, 255))
             self.game_surface.fill((255, 255, 255))
             self.bottom_bar.fill((40, 60, 140))
@@ -546,13 +567,14 @@ class Game():
                                                                tower_info.frame.image.get_height()/2))
             pygame.display.flip()
 
-    # True if the point is in the map_border, false if not
+    # Returns true if the point is in the map_border, false if not
     def collide_border(self, point):
         for border in self.border_list:
             if border.collidepoint(point):
                 return True
         return False
 
+    # Creates all of the blocks on the screen.
     def gen_blocks(self):
         ret_group = pygame.sprite.Group()
         y_value = 0
@@ -575,12 +597,11 @@ class Game():
             b.get_neighbors(self.grid)
         return ret_group
 
+    # Generates the pathing values for all blocks on the screen
     def gen_values(self):
         is_pathing = True
         the_blocks = [self.end_block]
         checked = [self.end_block]
-        the_val = 0
-        font = pygame.font.Font(None, 30)
         while is_pathing:
             if len(checked) >= len(self.hidden_blocks):
                 break
@@ -594,8 +615,7 @@ class Game():
                             checked.append(neighbor)
                             the_blocks.append(neighbor)
 
-        print "Out"
-
+    # Generates the shortest path through the blocks and gives it to the monsters
     def gen_path(self):
         ret_path = []
         for b in self.hidden_blocks:
@@ -622,14 +642,16 @@ class Game():
 
         return ret_path
 
+    # Generates the wave of monsters
     def gen_monsters(self, number, wave):
         ret_group = pygame.sprite.Group()
 
         self.gen_values()
         path = self.gen_path()
-        # Randomly selects monsters to spawn
+
+        # Randomly selects which monsters to spawn
         for x in range(number):
-            add_monster = random.choice([Monster, FastMonster])
+            add_monster = random.choice([Monster])
             ret_group.add(add_monster(random.randint(1, 5), path))
 
         return ret_group

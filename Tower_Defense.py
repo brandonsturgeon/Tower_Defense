@@ -27,7 +27,7 @@ class Block(pygame.sprite.Sprite):
         self.grid_pos = tuple([x/40 for x in self.pos])
         self.image = pygame.Surface((40, 40)).convert()
         self.color = (125, 125, 125)
-        self.image.fill(self.color)
+        self.image.fill((255, 255, 255))
         self.rect = pygame.Rect(self.pos, self.image.get_size())
         self.is_shown = False
         self.is_path = False
@@ -408,8 +408,9 @@ class Game():
 
         self.all_towers = [Tower, MortarTower, RapidTower]
         self.tower_dic = {"Tower": Tower, "Mortar Tower": MortarTower, "Rapid-fire Tower": RapidTower}
+        self.cursor = pygame.Surface((500, 500)).convert()
         self.core_health = 100
-        self.money = 200
+        self.money = 400
         self.grid = []
         self.end_block = None
         self.blocks = pygame.sprite.Group()
@@ -518,6 +519,7 @@ class Game():
                                                 self.blocks.remove(block)
                                                 self.hidden_blocks.add(block)
                                                 block.is_shown = False
+                                                self.update_path()
                                                 break
 
                     # Middle mouse button (Or the letter T)
@@ -545,20 +547,14 @@ class Game():
                                     self.hidden_blocks.remove(block)
                                     self.blocks.add(block)
                                     block.is_shown = True
+                                    block.is_path = False
+                                    self.update_path()
                                     break
 
             # Wave is over if all monsters are dead
             if len(self.monsters) == 0:
                 self.can_interact = True
                 # Clearing the pathing colors
-                for b in self.blocks:
-                    if b.pos != (80, 40) and b.pos != self.end_block.pos:
-                        b.is_path = False
-                        b.image.fill(b.color)
-                for a in self.hidden_blocks:
-                    if a.pos != (80, 40) and a.pos != self.end_block.pos:
-                        a.is_path = False
-                        a.image.fill(a.color)
 
             # Clear the screen to prepare for re-blit
             self.game_window.fill((255, 255, 255))
@@ -566,19 +562,27 @@ class Game():
             self.bottom_bar.fill((40, 60, 140))
 
             # Game_Surface blitting
-            self.blocks.draw(self.game_surface)
 
             for hidden in self.hidden_blocks:
                 if hidden.is_path:
                     self.game_surface.blit(hidden.image, hidden.pos)
+            self.path.draw(self.game_surface)
+            self.blocks.draw(self.game_surface)
 
             for monster in self.monsters:
                 self.core_health -= monster.update(self.game_surface)
 
-            self.path.draw(self.game_surface)
             self.monsters.draw(self.game_surface)
             self.towers.update(self.monsters, self.game_surface, self.game_surface_rect)
             self.towers.draw(self.game_surface)
+
+            self.cursor.fill((0, 0, 0, 0))
+            pygame.draw.circle(self.cursor, (255, 0, 0), (250-cur_tower((0, 0)).radius,
+                                                          250-cur_tower((0, 0)).radius),
+                               cur_tower((0, 0)).radius)
+            self.game_surface.blit(self.cursor, ((self.game_surface.get_width()/2)-250,
+                                                 (self.game_surface.get_height()/2) - 250))
+
             self.game_window.blit(self.game_surface, (0, 0))
 
             # Bottom_Bar blitting
@@ -595,6 +599,7 @@ class Game():
                                                                tower_info.image.get_width(),
                                                                tower_info.rect.y -
                                                                tower_info.frame.image.get_height()/2))
+
             pygame.display.flip()
 
     # Returns true if the point is in the map_border, false if not
@@ -648,6 +653,7 @@ class Game():
         for reset in self.blocks:
             reset.path_value = 0
             reset.is_path = False
+
         the_blocks = [self.end_block]
         checked = [self.end_block]
         while is_pathing:
@@ -667,6 +673,7 @@ class Game():
     def gen_path(self):
         ret_path = []
         checked = set()
+        self.path = pygame.sprite.Group()
         for b in self.hidden_blocks:
             if b.pos == (80, 40):
                 b.is_path = True
@@ -682,7 +689,6 @@ class Game():
                 if not neighbor.is_shown:
                     if neighbor.path_value < ret_path[-1].path_value and neighbor not in checked:
                         ret_path.append(neighbor)
-                        checked.add(neighbor)
                         neighbor.is_path = True
                         if neighbor != self.end_block:
                             neighbor.image.fill((230, 200, 200))
@@ -690,6 +696,7 @@ class Game():
                         if neighbor.path_value == 0:
                             finding_path = False
                         break
+                checked.add(neighbor)
         self.path.add(ret_path)
         return ret_path
 
@@ -698,14 +705,24 @@ class Game():
         ret_group = pygame.sprite.Group()
 
         self.gen_values()
+
         path = self.gen_path()
+        if path[1]:
+            # Randomly selects which monsters to spawn
+            for x in range(number):
+                add_monster = random.choice([Monster])
+                ret_group.add(add_monster(random.randint(1, 5), list(path[0])))
 
-        # Randomly selects which monsters to spawn
-        for x in range(number):
-            add_monster = random.choice([Monster])
-            ret_group.add(add_monster(random.randint(1, 5), list(path)))
+            return ret_group
 
-        return ret_group
+    def update_path(self):
+        self.gen_values()
+        self.gen_path()
+        for a in self.blocks:
+            if not a.is_path:
+                a.image.fill(a.color)
+
+
 
 
 if __name__ == "__main__":

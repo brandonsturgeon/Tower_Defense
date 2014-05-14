@@ -79,7 +79,7 @@ class Monster(pygame.sprite.Sprite):
         self.image.blit(self.image_inside, (1, 1))
         self.pos = (80, 40)
         self.rect = pygame.Rect(self.pos, self.image.get_size())
-        self.speed = 5
+        self.speed = 2
         self.diag_speed = 2
         self.target_pos = (880, 560)
         self.value = 1
@@ -88,16 +88,13 @@ class Monster(pygame.sprite.Sprite):
         self.cur_node = self.nodes[0]
         self.the_dir = (0, 0)
 
-    def update(self, blocks, window):
+    def update(self, window):
 
         if time.time() - self.spawn_time >= self.move_time:
             if len(self.nodes) < 1:
                 self.kill()
                 return self.value
             else:
-                blocks_rect = [x.rect for x in blocks if not x.is_path]
-                if self.rect in blocks_rect:
-                    blocks_rect.remove(self.rect)
 
                 # Figuring direction
                 if self.nodes[0].rect.x > self.cur_node.rect.x:
@@ -109,10 +106,18 @@ class Monster(pygame.sprite.Sprite):
                 elif self.nodes[0].rect.y < self.cur_node.rect.y:
                     self.the_dir = (0, -1)
 
-                self.rect.move_ip(self.the_dir)
-                if self.rect == self.nodes[0].rect:
-                    self.cur_node = self.nodes.pop(0)
-                    print "pop"
+                # Check to see the most the monster can move
+                for speed in range(0, self.speed+1):
+                    t_dir = tuple([x*speed for x in self.the_dir])
+
+                    # Monster can only move this much
+                    if self.rect.move(t_dir) == self.nodes[0].rect:
+                        self.rect.move_ip(t_dir)
+                        self.cur_node = self.nodes.pop(0)
+                        break
+                else:
+                    # The monster can move by self.speed
+                    self.rect.move_ip(tuple([x*self.speed for x in self.the_dir]))
 
                 if self.rect.top >= window.get_height():
                     self.kill()
@@ -139,7 +144,7 @@ class FastMonster(Monster):
         self.image_inside.fill((255, 255, 0))
         self.image.blit(self.image_inside, (1, 1))
         self.rect = pygame.Rect(self.pos, (40, 40))
-        self.speed = 6
+        self.speed = 4
         self.diag_speed = 3
         self.value = 0.5
         self.health = 50
@@ -409,6 +414,7 @@ class Game():
         self.end_block = None
         self.blocks = pygame.sprite.Group()
         self.hidden_blocks = self.gen_blocks()
+        self.path = pygame.sprite.Group()
         self.monsters = pygame.sprite.Group()
         self.towers = pygame.sprite.Group()
         self.playing = True
@@ -421,6 +427,12 @@ class Game():
         self.main()
 
     def main(self):
+        self.gen_values()
+        self.gen_path()
+        for b in self.hidden_blocks:
+            if b.is_path and b.pos != (80, 40) and b != self.end_block:
+                b.image.fill((230, 200, 200))
+
         # Creating the start button
         start_button = pygame.Surface((130, 130))
         start_button_rect = pygame.Rect((870, 560), (130, 130))
@@ -457,34 +469,39 @@ class Game():
             mouse_button = pygame.mouse.get_pressed()
             keys = pygame.key.get_pressed()
 
+            # Main event loop
             for event in events:
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     return
 
-                # Only in between waves
-                if self.can_interact:
+                # If interaction is off, stop checking events
+                if not self.can_interact:
+                    break
+
+                # Otherwise, check events
+                else:
                     if event.type == pygame.MOUSEMOTION:
                         self.mouse_x, self.mouse_y = event.pos
                         self.mouse_pos = (self.mouse_x, self.mouse_y)
 
                     # Left mouse button
                     if mouse_button[0] == 1:
-                        # Collide with tower in the shop?
+                        # If colliding with a tower in the shop, change the current tower
                         for tower in tower_shop_list:
                             if tower.rect.collidepoint(self.mouse_pos):
                                 cur_tower = self.tower_dic[tower.tower.name]
                                 print "Changing Tower to: " + str(cur_tower)
                                 break
                         else:
-                            # Collide with play_button?
+                            # If the play button is pressed, start the wave
                             if start_button_rect.collidepoint(self.mouse_pos):
                                 self.can_interact = False
                                 self.wave += 1
                                 self.monsters = self.gen_monsters(random.randint(10, 25), self.wave)
                                 break
                             else:
-                                # Collide with a tower?
+                                # If clicked on a tower, display the info panel
                                 for t in self.towers:
                                     if t.rect.collidepoint(self.mouse_pos):
                                         if tower_info == t:
@@ -493,7 +510,7 @@ class Game():
                                             tower_info = t
                                         break
                                 else:
-                                    # Collide with a block?
+                                    # If a block is clicked, remove it
                                     if not self.collide_border(self.mouse_pos):
                                         tower_info = None
                                         for block in self.blocks:
@@ -501,38 +518,49 @@ class Game():
                                                 self.blocks.remove(block)
                                                 self.hidden_blocks.add(block)
                                                 block.is_shown = False
+                                                break
 
-                    # Middle mouse button
+                    # Middle mouse button (Or the letter T)
                     elif mouse_button[1] == 1 or keys[pygame.K_t]:
+                        # If you click on a tower, destroy it
                         if not self.collide_border(self.mouse_pos):
                             for tower in self.towers:
                                 if tower.rect.collidepoint((self.mouse_x, self.mouse_y)):
                                     tower.kill()
                                     break
                             else:
+                                # If you click on an empty block, create a tower
                                 for block in self.blocks:
                                     if block.rect.collidepoint((self.mouse_x, self.mouse_y)):
                                         self.towers.add(cur_tower((block.rect.x, block.rect.y)))
                                         block.is_shown = True
+                                        break
 
                     # Right mouse button
                     elif mouse_button[2] == 1:
+                        # Create a path
                         if not self.collide_border(self.mouse_pos):
                             for block in self.hidden_blocks:
                                 if block.rect.collidepoint((self.mouse_x, self.mouse_y)):
                                     self.hidden_blocks.remove(block)
                                     self.blocks.add(block)
                                     block.is_shown = True
+                                    break
 
             # Wave is over if all monsters are dead
             if len(self.monsters) == 0:
                 self.can_interact = True
-                for a, b in zip(self.hidden_blocks, self.blocks):
-                    b.is_path = False
-                    b.image.fill(b.color)
-                    a.is_path = False
-                    a.image.fill(a.color)
+                # Clearing the pathing colors
+                for b in self.blocks:
+                    if b.pos != (80, 40) and b.pos != self.end_block.pos:
+                        b.is_path = False
+                        b.image.fill(b.color)
+                for a in self.hidden_blocks:
+                    if a.pos != (80, 40) and a.pos != self.end_block.pos:
+                        a.is_path = False
+                        a.image.fill(a.color)
 
+            # Clear the screen to prepare for re-blit
             self.game_window.fill((255, 255, 255))
             self.game_surface.fill((255, 255, 255))
             self.bottom_bar.fill((40, 60, 140))
@@ -545,11 +573,9 @@ class Game():
                     self.game_surface.blit(hidden.image, hidden.pos)
 
             for monster in self.monsters:
-                new_gr = pygame.sprite.Group()
-                new_gr.add(self.blocks)
-                new_gr.add(self.hidden_blocks)
-                self.core_health -= monster.update(new_gr, self.game_surface)
+                self.core_health -= monster.update(self.game_surface)
 
+            self.path.draw(self.game_surface)
             self.monsters.draw(self.game_surface)
             self.towers.update(self.monsters, self.game_surface, self.game_surface_rect)
             self.towers.draw(self.game_surface)
@@ -586,11 +612,22 @@ class Game():
             x_value = 0
             row = []
             for x in range(25):
+
+                # Ending block
                 if (x_value, y_value) != (840, 480):
-                    b = Block((x_value, y_value), False)
+                    # Starting block
+                    if (x_value, y_value) == (80, 40):
+                        b = Block((x_value, y_value), False)
+                        b.color = (0, 0, 255)
+                        b.image.fill((0, 0, 255))
+                    else:
+                        b = Block((x_value, y_value), False)
                 else:
                     b = Block((x_value, y_value), True)
+                    b.color = (255, 0, 0)
+                    b.image.fill((255, 0, 0))
                     self.end_block = b
+
                 ret_group.add(b)
                 row.append(b)
                 x_value += 40
@@ -647,14 +684,13 @@ class Game():
                         ret_path.append(neighbor)
                         checked.add(neighbor)
                         neighbor.is_path = True
-                        neighbor.image.fill((230, 200, 200))
+                        if neighbor != self.end_block:
+                            neighbor.image.fill((230, 200, 200))
 
                         if neighbor.path_value == 0:
                             finding_path = False
                         break
-        for block in ret_path:
-            print block.rect,
-        print ""
+        self.path.add(ret_path)
         return ret_path
 
     # Generates the wave of monsters
@@ -662,11 +698,12 @@ class Game():
         ret_group = pygame.sprite.Group()
 
         self.gen_values()
+        path = self.gen_path()
 
         # Randomly selects which monsters to spawn
         for x in range(number):
             add_monster = random.choice([Monster])
-            ret_group.add(add_monster(random.randint(1, 5), self.gen_path()))
+            ret_group.add(add_monster(random.randint(1, 5), list(path)))
 
         return ret_group
 

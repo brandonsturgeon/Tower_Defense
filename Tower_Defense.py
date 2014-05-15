@@ -411,7 +411,7 @@ class Game():
 
         self.all_towers = [Tower, MortarTower, RapidTower]
         self.tower_dic = {"Tower": Tower, "Mortar Tower": MortarTower, "Rapid-fire Tower": RapidTower}
-        self.cursor = pygame.Surface((800, 800)).convert()
+        self.cursor = pygame.Surface((1000, 700)).convert()
         self.core_health = 100
         self.money = 400
         self.grid = []
@@ -495,7 +495,6 @@ class Game():
                         for tower in tower_shop_list:
                             if tower.rect.collidepoint(self.mouse_pos):
                                 cur_tower = self.tower_dic[tower.tower.name]
-                                print "Changing Tower to: " + str(cur_tower)
                                 break
                         else:
                             # If the play button is pressed, start the wave
@@ -602,11 +601,9 @@ class Game():
                 self.cursor.fill((127, 33, 33))
                 self.cursor.set_colorkey((127, 33, 33))
                 the_t = cur_tower((0, 0))
-                pygame.draw.circle(self.cursor, (255, 0, 0), (400-the_t.radius,
-                                                              400-the_t.radius),
-                                   the_t.radius)
+                pygame.draw.circle(self.cursor, (255, 0, 0), self.mouse_pos, the_t.radius)
                 self.cursor.set_alpha(75)
-                self.game_window.blit(self.cursor, (self.mouse_x - the_t.radius, self.mouse_y - the_t.radius))
+                self.game_window.blit(self.cursor, (0, 0))
 
             pygame.display.flip()
 

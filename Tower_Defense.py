@@ -87,10 +87,12 @@ class Monster(pygame.sprite.Sprite):
         self.counter = 0
         self.cur_node = self.nodes[0]
         self.the_dir = (0, 0)
+        self.can_move = False
 
     def update(self, window):
 
         if time.time() - self.spawn_time >= self.move_time:
+            self.can_move = True
             if len(self.nodes) < 1:
                 self.kill()
                 return self.value
@@ -293,9 +295,10 @@ class Tower(pygame.sprite.Sprite):
         # If there is no target
         if self.target is None:
             for monster in monsters:
-                if pygame.sprite.collide_circle(monster, self):
-                    self.target = monster
-                    break
+                if monster.can_move:
+                    if pygame.sprite.collide_circle(monster, self):
+                        self.target = monster
+                        break
 
         # Shoot at the target
         if self.target is not None:
@@ -408,7 +411,7 @@ class Game():
 
         self.all_towers = [Tower, MortarTower, RapidTower]
         self.tower_dic = {"Tower": Tower, "Mortar Tower": MortarTower, "Rapid-fire Tower": RapidTower}
-        self.cursor = pygame.Surface((500, 500)).convert()
+        self.cursor = pygame.Surface((800, 800)).convert()
         self.core_health = 100
         self.money = 400
         self.grid = []
@@ -532,11 +535,13 @@ class Game():
                                     break
                             else:
                                 # If you click on an empty block, create a tower
-                                for block in self.blocks:
-                                    if block.rect.collidepoint((self.mouse_x, self.mouse_y)):
-                                        self.towers.add(cur_tower((block.rect.x, block.rect.y)))
-                                        block.is_shown = True
-                                        break
+                                if cur_tower is not None:
+                                    for block in self.blocks:
+                                        if block.rect.collidepoint((self.mouse_x, self.mouse_y)):
+                                            self.towers.add(cur_tower((block.rect.x, block.rect.y)))
+                                            block.is_shown = True
+                                            cur_tower = None
+                                            break
 
                     # Right mouse button
                     elif mouse_button[2] == 1:
@@ -575,14 +580,6 @@ class Game():
             self.monsters.draw(self.game_surface)
             self.towers.update(self.monsters, self.game_surface, self.game_surface_rect)
             self.towers.draw(self.game_surface)
-
-            self.cursor.fill((0, 0, 0, 0))
-            pygame.draw.circle(self.cursor, (255, 0, 0), (250-cur_tower((0, 0)).radius,
-                                                          250-cur_tower((0, 0)).radius),
-                               cur_tower((0, 0)).radius)
-            self.game_surface.blit(self.cursor, ((self.game_surface.get_width()/2)-250,
-                                                 (self.game_surface.get_height()/2) - 250))
-
             self.game_window.blit(self.game_surface, (0, 0))
 
             # Bottom_Bar blitting
@@ -599,6 +596,17 @@ class Game():
                                                                tower_info.image.get_width(),
                                                                tower_info.rect.y -
                                                                tower_info.frame.image.get_height()/2))
+
+            # Visualized tower radius when placing
+            if cur_tower is not None:
+                self.cursor.fill((127, 33, 33))
+                self.cursor.set_colorkey((127, 33, 33))
+                the_t = cur_tower((0, 0))
+                pygame.draw.circle(self.cursor, (255, 0, 0), (400-the_t.radius,
+                                                              400-the_t.radius),
+                                   the_t.radius)
+                self.cursor.set_alpha(75)
+                self.game_window.blit(self.cursor, (self.mouse_x - the_t.radius, self.mouse_y - the_t.radius))
 
             pygame.display.flip()
 
@@ -707,13 +715,13 @@ class Game():
         self.gen_values()
 
         path = self.gen_path()
-        if path[1]:
-            # Randomly selects which monsters to spawn
-            for x in range(number):
-                add_monster = random.choice([Monster])
-                ret_group.add(add_monster(random.randint(1, 5), list(path[0])))
 
-            return ret_group
+        # Randomly selects which monsters to spawn
+        for x in range(number):
+            add_monster = random.choice([Monster, FastMonster])
+            ret_group.add(add_monster(random.randint(1, 5), list(path)))
+
+        return ret_group
 
     def update_path(self):
         self.gen_values()
@@ -721,8 +729,6 @@ class Game():
         for a in self.blocks:
             if not a.is_path:
                 a.image.fill(a.color)
-
-
 
 
 if __name__ == "__main__":

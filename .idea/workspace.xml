@@ -28,7 +28,7 @@
       <file leaf-file-name="Tower_Defense.py" pinned="false" current="true" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/Tower_Defense.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state line="117" column="0" selection-start="4123" selection-end="4123" vertical-scroll-proportion="0.6196808" vertical-offset="1705" max-vertical-offset="14484">
+            <state line="628" column="79" selection-start="23802" selection-end="23802" vertical-scroll-proportion="0.78612715" vertical-offset="10353" max-vertical-offset="14926">
               <folding />
             </state>
           </provider>
@@ -52,9 +52,10 @@
     </option>
   </component>
   <component name="ProjectFrameBounds">
-    <option name="x" value="800" />
-    <option name="width" value="800" />
-    <option name="height" value="866" />
+    <option name="x" value="-4" />
+    <option name="y" value="-4" />
+    <option name="width" value="1288" />
+    <option name="height" value="764" />
   </component>
   <component name="ProjectLevelVcsManager" settingsEditedManually="false">
     <OptionsSetting value="true" id="Add" />
@@ -256,8 +257,8 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="800" y="0" width="800" height="866" extended-state="0" />
-    <editor active="true" />
+    <frame x="-4" y="-4" width="1288" height="764" extended-state="6" />
+    <editor active="false" />
     <layout>
       <window_info id="Changes" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
@@ -267,7 +268,7 @@
       <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.4" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="7" side_tool="true" content_ui="tabs" />
-      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.44474036" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
+      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.44394618" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Cvs" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.25" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
       <window_info id="Message" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
@@ -295,6 +296,13 @@
     <breakpoint-manager />
   </component>
   <component name="editorHistoryManager">
+    <entry file="file://$PROJECT_DIR$/Tower_Defense.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="117" column="0" selection-start="4131" selection-end="4131" vertical-scroll-proportion="0.0" vertical-offset="1989" max-vertical-offset="12546">
+          <folding />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/Tower_Defense.py">
       <provider selected="true" editor-type-id="text-editor">
         <state line="588" column="41" selection-start="23424" selection-end="23424" vertical-scroll-proportion="0.0" vertical-offset="9996" max-vertical-offset="12495">
@@ -367,7 +375,7 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/Tower_Defense.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state line="117" column="0" selection-start="4123" selection-end="4123" vertical-scroll-proportion="0.6196808" vertical-offset="1705" max-vertical-offset="14484">
+        <state line="628" column="79" selection-start="23802" selection-end="23802" vertical-scroll-proportion="0.78612715" vertical-offset="10353" max-vertical-offset="14926">
           <folding />
         </state>
       </provider>

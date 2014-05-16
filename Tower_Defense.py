@@ -430,19 +430,21 @@ class TowerShopTab():
         self.tower = tower
         self.name = self.tower.name
         self.description = self.tower.description
-        self.image_inside = pygame.Surface((123, 38)).convert()
-        self.image_inside.fill((100, 100, 100))
-        self.image = pygame.Surface((125, 40)).convert()
-        self.rect = pygame.Rect(self.pos, self.image.get_size())
+        self.surface_inside = pygame.Surface((123, 38)).convert()
+        self.surface_inside.fill((100, 100, 100))
+        self.image = tower.image
+        self.cost = tower.cost
+        self.surface = pygame.Surface((125, 40)).convert()
+        self.rect = pygame.Rect(self.pos, self.surface .get_size())
         self.font = pygame.font.Font(None, 15)
         self.info_tab = tower.frame.image
 
-        self.image_inside.blit(pygame.transform.scale(self.tower.image, (20, 20)), (5, 10))
-        self.image_inside.blit(self.font.render(self.tower.name, 1, (0, 0, 0)), (30, 25-self.font.get_height()))
-        self.image.blit(self.image_inside, (1, 1))
+        self.surface_inside.blit(pygame.transform.scale(self.tower.image, (20, 20)), (5, 10))
+        self.surface_inside.blit(self.font.render(self.tower.name, 1, (0, 0, 0)), (30, 25-self.font.get_height()))
+        self.surface .blit(self.surface_inside, (1, 1))
 
     def get_surface(self):
-        return self.image
+        return self.surface
 
 
 class InfoTab():
@@ -453,13 +455,18 @@ class InfoTab():
         self.surface_inside.fill((255, 255, 255))
         self.surface.fill((0, 0, 0))
         self.font = pygame.font.Font(None, 15)
+        self.l_font = pygame.font.Font(None, 25)
 
     def update(self, obj=None):
         self.surface_inside.fill((255, 255, 255))
         self.surface.fill((0, 0, 0))
         if obj is not None:
             self.surface_inside.blit(pygame.transform.scale(obj.image, (20, 20)), (5, 5))
-            self.surface_inside.blit(self.font.render(obj.name, 1, (0, 0, 0)), (30, 25-self.font.get_height()))
+            self.surface_inside.blit(self.l_font.render(obj.name, 1, (0, 0, 0)), (30, 25-self.l_font.get_height()))
+
+            cost_str = "$"+str(obj.cost)
+            self.surface_inside.blit(self.l_font.render(cost_str, 1, (0, 255, 0)),
+                                     (self.surface_inside.get_width() - self.l_font.size(cost_str)[0] - 10, 5))
 
             y_val = 30
             for line in self.length_splitter(self.font, obj.description, self.surface_inside.get_width()-10):
@@ -482,7 +489,6 @@ class InfoTab():
                 if len(explode) == 0:
                     ret_list.append(t_str)
         return ret_list
-
 
 
 # Main game class
@@ -548,11 +554,16 @@ class Game():
                                                                       start_button.get_height()/2 -
                                                                       self.font.get_height()))
 
-        # Adding towers to the shop
+        # Adding towers to the shop and displaying them at the bottom
         tower_shop_list = []
         x_val = 10
-        for tower in self.all_towers:
-            tower_shop_list.append(TowerShopTab(tower((0, 0)), (x_val, 50 + 560)))
+        y_val = 562
+        # Limit 3 towers per row, then wrap back around
+        for count, tower in enumerate(self.all_towers):
+            if count == 3:
+                y_val += 42
+                x_val = 10
+            tower_shop_list.append(TowerShopTab(tower((0, 0)), (x_val, y_val)))
             x_val += 133
 
         # Coloring the borders
@@ -567,10 +578,12 @@ class Game():
         # Before-loop values
         tower_info = None
         cur_tower = None
-        hover_obj = None
 
         # Main game Loop
         while self.playing:
+            # Game Over
+            if self.core_health <= 0:
+                return
             self.clock.tick(60)
             events = pygame.event.get()
             mouse_button = pygame.mouse.get_pressed()
@@ -609,13 +622,14 @@ class Game():
                             else:
                                 # Placing a tower
                                 if cur_tower is not None:
-
-                                    for block in self.blocks:
-                                        if block.rect.collidepoint((self.mouse_x, self.mouse_y)):
-                                            self.towers.add(cur_tower((block.rect.x, block.rect.y)))
-                                            block.is_shown = True
-                                            cur_tower = None
-                                            break
+                                    if self.money >= cur_tower((0, 0)).cost:
+                                        for block in self.blocks:
+                                            if block.rect.collidepoint((self.mouse_x, self.mouse_y)):
+                                                self.towers.add(cur_tower((block.rect.x, block.rect.y)))
+                                                self.money -= cur_tower((0, 0)).cost
+                                                block.is_shown = True
+                                                cur_tower = None
+                                                break
                                 else:
                                     # If clicked on a tower, display the info panel
                                     for t in self.towers:
@@ -648,6 +662,7 @@ class Game():
 
                     # Right mouse button
                     elif mouse_button[2] == 1:
+                        cur_tower = None
                         # If a block is clicked, remove it
                         if not self.collide_border(self.mouse_pos):
                             tower_info = None
@@ -686,8 +701,18 @@ class Game():
 
             # Bottom_Bar blitting #
             self.bottom_bar.blit(start_button, (self.bottom_bar.get_width() - start_button.get_width(), 0))
+            hp_text = "Health: "+str(self.core_health)
+            money_text = "Money: $"+str(self.money)
+            self.bottom_bar.blit(self.font.render(hp_text, 1, (255, 0, 0)), (self.bottom_bar.get_width() -
+                                                                             start_button.get_width() -
+                                                                             self.info_box.surface.get_width() -
+                                                                             self.font.size(hp_text)[0], 20))
+            self.bottom_bar.blit(self.font.render(money_text, 1, (0, 255, 0)), (self.bottom_bar.get_width() -
+                                                                                start_button.get_width() -
+                                                                                self.info_box.surface.get_width() -
+                                                                                self.font.size(hp_text)[0], 70))
             for tower in tower_shop_list:
-                self.bottom_bar.blit(tower.image, (tower.rect.x, tower.rect.y - 560))
+                self.bottom_bar.blit(tower.surface, (tower.rect.x, tower.rect.y - 560))
 
             # Info box blitting
             for obj in list(self.monsters) + list(self.towers) + tower_shop_list:
@@ -818,7 +843,8 @@ class Game():
                         if neighbor.path_value == 0:
                             finding_path = False
                         break
-                checked.add(neighbor)
+                if neighbor not in checked:
+                    checked.add(neighbor)
         self.path.add(ret_path)
         return ret_path
 

@@ -242,17 +242,18 @@ class TowerFrame():
                              "Damage": self.tower.damage,
                              "DPS": dps_calc}
         self.font = pygame.font.Font(None, 18)
-        self.upgrade_button = pygame.Surface((100, 50))
-        self.upgrade_button.fill((0, 255, 0))
-        self.upgrade_button.blit(self.font.render("Upgrade", 1, (0, 0, 0)),
-                                 (self.upgrade_button.get_width()/2 - self.font.size("Upgrade")[0]/2,
-                                  self.upgrade_button.get_height()/2 - self.font.size("Upgrade")[1]/2))
-        self.image.blit(self.upgrade_button, (self.image.get_width() - self.upgrade_button.get_width(),
-                                              self.image.get_height() - self.upgrade_button.get_height()))
+        #self.upgrade_button = pygame.Surface((100, 50))
+        #self.upgrade_button.fill((0, 255, 0))
+        #self.upgrade_button.blit(self.font.render("Upgrade", 1, (0, 0, 0)),
+        #                         (self.upgrade_button.get_width()/2 - self.font.size("Upgrade")[0]/2,
+        #                          self.upgrade_button.get_height()/2 - self.font.size("Upgrade")[1]/2))
+        #self.image.blit(self.upgrade_button, (self.image.get_width() - self.upgrade_button.get_width(),
+        #                                      self.image.get_height() - self.upgrade_button.get_height()))
 
-        self.upgrade_button_rect = pygame.Rect((self.image.get_width() - self.upgrade_button.get_width(),
-                                                self.image.get_height() - self.upgrade_button.get_height()),
-                                               self.upgrade_button.get_size())
+        #level_text = "Level: " + str(self.tower.level)
+        #self.image.blit(self.font.render(level_text, 1, (0, 0, 0)),
+        #                (self.image.get_width() - self.upgrade_button.get_width(),
+        #                 self.image.get_height() - self.upgrade_button.get_height() - self.font.size(level_text)[1]))
 
         self.image.blit(self.tower.image, (self.s_width/2 - self.tower.image.get_width()/2, 2))
 
@@ -269,8 +270,6 @@ class TowerFrame():
             value = self.t_attributes[attr]
             self.image.blit(self.font.render(attr + ": " + str(value), 1, (0, 0, 0)), (5, y_value))
             y_value += self.font.get_height() + 1
-
-
         self.image = OutlinedSurface(self.image, 5).surface
 
     @staticmethod
@@ -782,6 +781,7 @@ class Game():
                                                     self.money -= cur_tower((0, 0)).cost
                                                     cur_tower = None
                                                     break
+                                            break
                                         else:
                                             # Regular towers
                                             for block in self.blocks:
@@ -791,6 +791,7 @@ class Game():
                                                     block.is_shown = True
                                                     cur_tower = None
                                                     break
+                                            break
                                 else:
                                     # If clicked on a tower, toggle the info panel
                                     for t in self.towers:
@@ -911,6 +912,7 @@ class Game():
                                                                    tower_info.image.get_width(),
                                                                    tower_info.rect.y -
                                                                    tower_info.frame.image.get_height()/2))
+                    self.cursor.blit(the_t.image, self.mouse_pos)
                 self.cursor.set_alpha(75)
                 self.game_window.blit(self.cursor, (0, 0))
 

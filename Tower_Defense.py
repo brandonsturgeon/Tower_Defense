@@ -242,6 +242,17 @@ class TowerFrame():
                              "Damage": self.tower.damage,
                              "DPS": dps_calc}
         self.font = pygame.font.Font(None, 18)
+        self.upgrade_button = pygame.Surface((100, 50))
+        self.upgrade_button.fill((0, 255, 0))
+        self.upgrade_button.blit(self.font.render("Upgrade", 1, (0, 0, 0)),
+                                 (self.upgrade_button.get_width()/2 - self.font.size("Upgrade")[0]/2,
+                                  self.upgrade_button.get_height()/2 - self.font.size("Upgrade")[1]/2))
+        self.image.blit(self.upgrade_button, (self.image.get_width() - self.upgrade_button.get_width(),
+                                              self.image.get_height() - self.upgrade_button.get_height()))
+
+        self.upgrade_button_rect = pygame.Rect((self.image.get_width() - self.upgrade_button.get_width(),
+                                                self.image.get_height() - self.upgrade_button.get_height()),
+                                               self.upgrade_button.get_size())
 
         self.image.blit(self.tower.image, (self.s_width/2 - self.tower.image.get_width()/2, 2))
 
@@ -258,6 +269,7 @@ class TowerFrame():
             value = self.t_attributes[attr]
             self.image.blit(self.font.render(attr + ": " + str(value), 1, (0, 0, 0)), (5, y_value))
             y_value += self.font.get_height() + 1
+
 
         self.image = OutlinedSurface(self.image, 5).surface
 
@@ -298,6 +310,7 @@ class Tower(pygame.sprite.Sprite):
         self.fire_rate = 1
         self.damage = 25
         self.level = 1
+        self.upgrade_cost = 5
         self.description = "A basic tower with moderate fire speed and damage."
         self.cost = 25
 
@@ -340,6 +353,12 @@ class Tower(pygame.sprite.Sprite):
                                             damage=self.damage))
             self.last_shot = time.time()
 
+    def upgrade(self):
+        if self.level < 5:
+            self.damage += 5
+            self.projectile_speed -= 0.5
+            self.level += 1
+
 
 class MortarTower(Tower):
     def __init__(self, pos):
@@ -369,6 +388,13 @@ class MortarTower(Tower):
                                              damage=self.damage))
             self.last_shot = time.time()
 
+    def upgrade(self):
+        if self.level < 5:
+            self.damage += 5
+            self.radius += 10
+            self.projectile_speed += 0.25
+            self.level += 1
+
 
 class RapidTower(Tower):
     def __init__(self, pos):
@@ -385,6 +411,12 @@ class RapidTower(Tower):
 
         self.frame = TowerFrame(self)
 
+    def upgrade(self):
+        if self.level < 5:
+            self.damage += 1
+            self.fire_rate -= 0.025
+            self.level += 1
+
 
 class SlowTower(Tower):
     def __init__(self, pos):
@@ -394,15 +426,70 @@ class SlowTower(Tower):
         self.fire_rate = 0
         self.damage = 0
         self.radius = 50
-        self.description = "A tower which slows all enemies in it's radius."
+        self.description = "A tower which slows all enemies in its radius."
         self.cost = 75
+        self.speed_mod = 0.75
 
         self.frame = TowerFrame(self)
 
     def update(self, monsters, screen, screen_rect):
         for monster in monsters:
             if pygame.sprite.collide_circle(self, monster):
-                monster.speed_mod = 0.75
+                monster.speed_mod = self.speed_mod
+
+    def upgrade(self):
+        if self.level < 5:
+            self.speed_mod -= 0.15
+            self.radius += 5
+            self.level += 1
+
+
+class MultiShot(Tower):
+    def __init__(self, pos):
+        Tower.__init__(self, pos)
+        self.name = "Multi Shot Tower"
+        self.image.fill((150, 0, 150))
+        self.fire_rate = 2
+        self.damage = 20
+        self.radius = 150
+        self.description = "A tower which hits up to 3 nearby enemy units."
+        self.cost = 125
+        self.target = []
+        self.max_targets = 3
+        self.frame = TowerFrame(self)
+
+    def update(self, monsters, screen, screen_rect):
+        self.target = []
+
+        # Gets up to 5 nearby targets
+        for monster in monsters:
+            if len(self.target) == 5:
+                break
+            elif pygame.sprite.collide_circle(monster, self):
+                self.target.append(monster)
+        if len(self.target) > 0:
+            self.shoot()
+
+        self.projectiles.update(monsters, screen_rect)
+        self.projectiles.draw(screen)
+
+    def shoot(self):
+        if time.time() - self.last_shot >= self.fire_rate:
+            for t in self.target:
+                self.projectiles.add(Projectile(pos=(self.rect.x, self.rect.y),
+                                                target=t,
+                                                image=self.projectile,
+                                                speed=self.projectile_speed,
+                                                damage=self.damage))
+            self.last_shot = time.time()
+
+    def upgrade(self):
+        if self.level < 5:
+            self.damage += 5
+            if self.max_targets < 5:
+                self.max_target += 1
+            self.radius += 5
+            self.level += 1
 
 
 class LandMine(Tower):
@@ -428,6 +515,12 @@ class LandMine(Tower):
                 monster.health -= self.damage
         self.kill()
 
+    def upgrade(self):
+        if self.level < 5:
+            self.damage += 20
+            self.upgrade_cost += 5
+            self.level += 1
+
 
 class AmpField(Tower):
     def __init__(self, pos):
@@ -436,18 +529,27 @@ class AmpField(Tower):
         self.image.fill((255, 255, 0))
         self.fire_rate = 0
         self.damage = 0
+        self.radius = 20
         self.description = "A block which increases the damage taken by all enemies on it by 50%"
         self.cost = 25
+        self.damage_mod = 1.5
 
         self.frame = TowerFrame(self)
 
     def update(self, monsters, screen, screen_rect):
         for monster in monsters:
             if self.rect.colliderect(monster.rect):
-                self.effect(monster, monsters)
+                self.effect(monster)
 
-    def effect(self, target, monsters):
+    @staticmethod
+    def effect(target):
         target.damage_mod = 1.5
+
+    def upgrade(self):
+        if self.level < 5:
+            self.damage_mod += 0.5
+            self.upgrade_cost += 5
+            self.level += 1
 
 
 # A tab for each tower down at the bottom
@@ -543,13 +645,17 @@ class Game():
         self.info_box = InfoTab()
 
         #
-        self.all_towers = [Tower, MortarTower, RapidTower, LandMine, SlowTower]
-        self.ground_towers = [LandMine]
+        self.all_towers = [Tower, MortarTower, RapidTower, LandMine, SlowTower, AmpField, MultiShot]
+        self.ground_towers = [LandMine, AmpField]
         self.tower_dic = {"Tower": Tower,
                           "Mortar Tower": MortarTower,
                           "Rapid-fire Tower": RapidTower,
                           "Landmine": LandMine,
-                          "Slow Tower": SlowTower}
+                          "Slow Tower": SlowTower,
+                          "Amp Field": AmpField,
+                          "Multi Shot Tower": MultiShot}
+        self.start_button = pygame.Surface((130, 130))
+        self.start_button_rect = pygame.Rect((870, 560), (130, 130))
 
         self.cursor = pygame.Surface((1000, 700)).convert()
         self.core_health = 100
@@ -575,16 +681,14 @@ class Game():
         self.gen_path()
         for b in self.hidden_blocks:
             if b.is_path and b.pos != (80, 40) and b != self.end_block:
-                b.image.fill((230, 200, 200))
+                b.image.fill((190, 190, 190))
 
         # Creating the start button
-        start_button = pygame.Surface((130, 130))
-        start_button_rect = pygame.Rect((870, 560), (130, 130))
-        start_button.fill((0, 255, 0))
-        start_button.blit(self.font.render("START", 1, (0, 0, 255)), (start_button.get_width()/2 -
-                                                                      self.font.size("START")[0]/2,
-                                                                      start_button.get_height()/2 -
-                                                                      self.font.get_height()))
+        self.start_button.fill((0, 255, 0))
+        self.start_button.blit(self.font.render("START", 1, (0, 0, 255)), (self.start_button.get_width()/2 -
+                                                                           self.font.size("START")[0]/2,
+                                                                           self.start_button.get_height()/2 -
+                                                                           self.font.get_height()))
 
         # Adding towers to the shop and displaying them at the bottom
         tower_shop_list = []
@@ -592,7 +696,7 @@ class Game():
         y_val = 562
         # Limit 3 towers per row, then wrap back around
         for count, tower in enumerate(self.all_towers):
-            if count == 3:
+            if count % 3 == 0 and count != 0:
                 y_val += 42
                 x_val = 10
             tower_shop_list.append(TowerShopTab(tower((0, 0)), (x_val, y_val)))
@@ -646,16 +750,24 @@ class Game():
                                 break
                         else:
                             # If the play button is pressed, start the wave
-                            if start_button_rect.collidepoint(self.mouse_pos):
-                                self.can_interact = False
-                                self.wave += 1
+                            if self.start_button_rect.collidepoint(self.mouse_pos):
                                 self.monsters = self.gen_monsters(random.randint(10, 25), self.wave)
-                                start_button.fill((255, 0, 0))
-                                start_button.blit(self.font.render("Playing...", 1, (0, 0, 255)),
-                                                  (start_button.get_width()/2 -
-                                                  self.font.size("Playing...")[0]/2,
-                                                  start_button.get_height()/2 -
-                                                  self.font.get_height()))
+                                if len(self.monsters) > 0:
+                                    self.start_button.fill((255, 0, 0))
+                                    self.start_button.blit(self.font.render("Playing...", 1, (0, 0, 255)),
+                                                          (self.start_button.get_width()/2 -
+                                                           self.font.size("Playing...")[0]/2,
+                                                           self.start_button.get_height()/2 -
+                                                           self.font.get_height()))
+                                    self.can_interact = False
+                                    self.wave += 1
+                                else:
+                                    self.start_button.fill((255, 0, 0))
+                                    self.start_button.blit(self.font.render("No Path...", 1, (0, 0, 255)),
+                                                          (self.start_button.get_width()/2 -
+                                                           self.font.size("No Path...")[0]/2,
+                                                           self.start_button.get_height()/2 -
+                                                           self.font.get_height()))
                                 break
                             else:
                                 # Placing a tower
@@ -724,13 +836,13 @@ class Game():
                                     break
 
             # Wave is over if all monsters are dead
-            if len(self.monsters) == 0:
+            if len(self.monsters) == 0 and not self.can_interact:
                 self.can_interact = True
-                start_button.fill((0, 255, 0))
-                start_button.blit(self.font.render("START", 1, (0, 0, 255)), (start_button.get_width()/2 -
-                                                                              self.font.size("START")[0]/2,
-                                                                              start_button.get_height()/2 -
-                                                                              self.font.get_height()))
+                self.start_button.fill((0, 255, 0))
+                self.start_button.blit(self.font.render("START", 1, (0, 0, 255)), (self.start_button.get_width()/2 -
+                                                                                   self.font.size("START")[0]/2,
+                                                                                   self.start_button.get_height()/2 -
+                                                                                   self.font.get_height()))
 
             # Clear the screen to prepare for re-blit
             self.game_window.fill((255, 255, 255))
@@ -742,6 +854,7 @@ class Game():
             for hidden in self.hidden_blocks:
                 if hidden.is_path:
                     self.game_surface.blit(hidden.image, hidden.pos)
+
             self.path.draw(self.game_surface)
             self.blocks.draw(self.game_surface)
 
@@ -754,15 +867,15 @@ class Game():
             self.game_window.blit(self.game_surface, (0, 0))
 
             # Bottom_Bar blitting #
-            self.bottom_bar.blit(start_button, (self.bottom_bar.get_width() - start_button.get_width(), 0))
+            self.bottom_bar.blit(self.start_button, (self.bottom_bar.get_width() - self.start_button.get_width(), 0))
             hp_text = "Health: "+str(self.core_health)
             money_text = "Money: $"+str(self.money)
             self.bottom_bar.blit(self.font.render(hp_text, 1, (255, 0, 0)), (self.bottom_bar.get_width() -
-                                                                             start_button.get_width() -
+                                                                             self.start_button.get_width() -
                                                                              self.info_box.surface.get_width() -
                                                                              self.font.size(hp_text)[0]-20, 20))
             self.bottom_bar.blit(self.font.render(money_text, 1, (0, 255, 0)), (self.bottom_bar.get_width() -
-                                                                                start_button.get_width() -
+                                                                                self.start_button.get_width() -
                                                                                 self.info_box.surface.get_width() -
                                                                                 self.font.size(hp_text)[0]-20, 70))
             for tower in tower_shop_list:
@@ -778,7 +891,7 @@ class Game():
 
             self.info_box.update(hover_obj)
             self.bottom_bar.blit(self.info_box.surface, (self.bottom_bar.get_width() -
-                                                         start_button.get_width() -
+                                                         self.start_button.get_width() -
                                                          self.info_box.surface.get_width(), 0))
 
             self.bottom_bar_outline.blit(self.bottom_bar, (5, 5))
@@ -881,21 +994,36 @@ class Game():
         finding_path = True
         while finding_path:
             cur_neighbors = ret_path[-1].neighbors
-
+            if all(neighbor in checked for neighbor in cur_neighbors):
+                finding_path = False
             for neighbor in cur_neighbors:
                 if not neighbor.is_shown:
                     if neighbor.path_value < ret_path[-1].path_value and neighbor not in checked:
                         ret_path.append(neighbor)
                         neighbor.is_path = True
                         if neighbor != self.end_block:
-                            neighbor.image.fill((230, 200, 200))
+                            neighbor.image.fill((190, 190, 190))
 
                         if neighbor.path_value == 0:
                             finding_path = False
                         break
                 if neighbor not in checked:
                     checked.add(neighbor)
+
         self.path.add(ret_path)
+        if len(ret_path) <= 1:
+            self.start_button.fill((255, 0, 0))
+            self.start_button.blit(self.font.render("No Path...", 1, (0, 0, 255)),
+                                  (self.start_button.get_width()/2 -
+                                   self.font.size("No Path...")[0]/2,
+                                   self.start_button.get_height()/2 -
+                                   self.font.get_height()))
+        else:
+            self.start_button.fill((0, 255, 0))
+            self.start_button.blit(self.font.render("START", 1, (0, 0, 255)), (self.start_button.get_width()/2 -
+                                                                               self.font.size("START")[0]/2,
+                                                                               self.start_button.get_height()/2 -
+                                                                               self.font.get_height()))
         return ret_path
 
     # Generates the wave of monsters
@@ -906,10 +1034,13 @@ class Game():
 
         path = self.gen_path()
 
-        # Randomly selects which monsters to spawn
-        for x in range(number):
-            add_monster = random.choice([Monster, FastMonster])
-            ret_group.add(add_monster(random.randint(1, 5), list(path)))
+        # Gen_path will return a list with a length of 1 if there is no valid path
+        # So we don't spawn monsters if the path isn't valid
+        if len(path) > 1:
+            # Randomly selects which monsters to spawn
+            for x in range(number):
+                add_monster = random.choice([Monster, FastMonster])
+                ret_group.add(add_monster(random.randint(1, 5), list(path)))
 
         return ret_group
 

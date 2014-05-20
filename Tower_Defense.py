@@ -84,7 +84,9 @@ class Monster(pygame.sprite.Sprite):
         self.diag_speed = 2
         self.target_pos = (880, 560)
         self.value = 1
+        self.cost = 0
         self.health = 100
+        self.damage_mod = 1
         self.counter = 0
         self.cur_node = self.nodes[0]
         self.the_dir = (0, 0)
@@ -140,7 +142,11 @@ class Monster(pygame.sprite.Sprite):
                 if self.health <= 0:
                     self.kill()
                 self.speed_mod = 1
+                self.damage_mod = 1
         return 0
+
+    def damage(self, value):
+        self.health -= value*self.damage_mod
 
 
 class FastMonster(Monster):
@@ -202,7 +208,7 @@ class Projectile(pygame.sprite.Sprite):
     def do_damage(self, monsters):
         for monster in monsters:
             if monster == self.target:
-                monster.health -= self.damage
+                monster.damage(self.damage)
                 break
 
 
@@ -215,7 +221,7 @@ class MortarShell(Projectile):
     def do_damage(self, monsters):
         for monster in monsters:
             if pygame.sprite.collide_circle(self, monster):
-                monster.health -= self.damage
+                monster.damage(self.damage)
 
 
 # Creates a frame full of information for the selected tower
@@ -423,6 +429,27 @@ class LandMine(Tower):
         self.kill()
 
 
+class AmpField(Tower):
+    def __init__(self, pos):
+        Tower.__init__(self, pos)
+        self.name = "Amp Field"
+        self.image.fill((255, 255, 0))
+        self.fire_rate = 0
+        self.damage = 0
+        self.description = "A block which increases the damage taken by all enemies on it by 50%"
+        self.cost = 25
+
+        self.frame = TowerFrame(self)
+
+    def update(self, monsters, screen, screen_rect):
+        for monster in monsters:
+            if self.rect.colliderect(monster.rect):
+                self.effect(monster, monsters)
+
+    def effect(self, target, monsters):
+        target.damage_mod = 1.5
+
+
 # A tab for each tower down at the bottom
 class TowerShopTab():
     def __init__(self, tower, pos):
@@ -511,8 +538,13 @@ class Game():
                             pygame.Rect((0, 0), (40, self.game_surface.get_height())),
                             pygame.Rect((0, self.game_surface.get_height()-40), (self.game_surface.get_width(), 40)),
                             pygame.Rect((self.game_surface.get_width()-40, 0), (40, self.game_surface.get_height()))]
+
+        # The bottom box that shows info about what you hover over
         self.info_box = InfoTab()
+
+        #
         self.all_towers = [Tower, MortarTower, RapidTower, LandMine, SlowTower]
+        self.ground_towers = [LandMine]
         self.tower_dic = {"Tower": Tower,
                           "Mortar Tower": MortarTower,
                           "Rapid-fire Tower": RapidTower,
@@ -550,7 +582,7 @@ class Game():
         start_button_rect = pygame.Rect((870, 560), (130, 130))
         start_button.fill((0, 255, 0))
         start_button.blit(self.font.render("START", 1, (0, 0, 255)), (start_button.get_width()/2 -
-                                                                      self.font.size("PLAY")[0]/2,
+                                                                      self.font.size("START")[0]/2,
                                                                       start_button.get_height()/2 -
                                                                       self.font.get_height()))
 
@@ -618,20 +650,37 @@ class Game():
                                 self.can_interact = False
                                 self.wave += 1
                                 self.monsters = self.gen_monsters(random.randint(10, 25), self.wave)
+                                start_button.fill((255, 0, 0))
+                                start_button.blit(self.font.render("Playing...", 1, (0, 0, 255)),
+                                                  (start_button.get_width()/2 -
+                                                  self.font.size("Playing...")[0]/2,
+                                                  start_button.get_height()/2 -
+                                                  self.font.get_height()))
                                 break
                             else:
                                 # Placing a tower
                                 if cur_tower is not None:
                                     if self.money >= cur_tower((0, 0)).cost:
-                                        for block in self.blocks:
-                                            if block.rect.collidepoint((self.mouse_x, self.mouse_y)):
-                                                self.towers.add(cur_tower((block.rect.x, block.rect.y)))
-                                                self.money -= cur_tower((0, 0)).cost
-                                                block.is_shown = True
-                                                cur_tower = None
-                                                break
+
+                                        # Ground towers (Landmines, etc)
+                                        if cur_tower in self.ground_towers:
+                                            for block in [x for x in self.hidden_blocks if x.is_path]:
+                                                if block.rect.collidepoint(self.mouse_pos):
+                                                    self.towers.add(cur_tower((block.rect.x, block.rect.y)))
+                                                    self.money -= cur_tower((0, 0)).cost
+                                                    cur_tower = None
+                                                    break
+                                        else:
+                                            # Regular towers
+                                            for block in self.blocks:
+                                                if block.rect.collidepoint(self.mouse_pos):
+                                                    self.towers.add(cur_tower((block.rect.x, block.rect.y)))
+                                                    self.money -= cur_tower((0, 0)).cost
+                                                    block.is_shown = True
+                                                    cur_tower = None
+                                                    break
                                 else:
-                                    # If clicked on a tower, display the info panel
+                                    # If clicked on a tower, toggle the info panel
                                     for t in self.towers:
                                         if t.rect.collidepoint(self.mouse_pos):
                                             if tower_info == t:
@@ -677,6 +726,11 @@ class Game():
             # Wave is over if all monsters are dead
             if len(self.monsters) == 0:
                 self.can_interact = True
+                start_button.fill((0, 255, 0))
+                start_button.blit(self.font.render("START", 1, (0, 0, 255)), (start_button.get_width()/2 -
+                                                                              self.font.size("START")[0]/2,
+                                                                              start_button.get_height()/2 -
+                                                                              self.font.get_height()))
 
             # Clear the screen to prepare for re-blit
             self.game_window.fill((255, 255, 255))
@@ -706,11 +760,11 @@ class Game():
             self.bottom_bar.blit(self.font.render(hp_text, 1, (255, 0, 0)), (self.bottom_bar.get_width() -
                                                                              start_button.get_width() -
                                                                              self.info_box.surface.get_width() -
-                                                                             self.font.size(hp_text)[0], 20))
+                                                                             self.font.size(hp_text)[0]-20, 20))
             self.bottom_bar.blit(self.font.render(money_text, 1, (0, 255, 0)), (self.bottom_bar.get_width() -
                                                                                 start_button.get_width() -
                                                                                 self.info_box.surface.get_width() -
-                                                                                self.font.size(hp_text)[0], 70))
+                                                                                self.font.size(hp_text)[0]-20, 70))
             for tower in tower_shop_list:
                 self.bottom_bar.blit(tower.surface, (tower.rect.x, tower.rect.y - 560))
 
@@ -792,7 +846,6 @@ class Game():
 
     # Generates the pathing values for all blocks on the screen
     def gen_values(self):
-        is_pathing = True
         for reset in self.hidden_blocks:
             reset.path_value = 0
             reset.is_path = False
@@ -801,20 +854,17 @@ class Game():
             reset.path_value = 0
             reset.is_path = False
 
-        the_blocks = [self.end_block]
+        blocks = [self.end_block]
         checked = [self.end_block]
-        while is_pathing:
-            if len(checked) >= len(self.hidden_blocks):
-                break
-
-            for block in the_blocks:
-                for neighbor in block.neighbors:
-                    if neighbor not in checked and neighbor:
-                        if neighbor.is_shown is False:
-                            the_val = block.path_value + 1
-                            neighbor.path_value = the_val
-                            checked.append(neighbor)
-                            the_blocks.append(neighbor)
+        while len(blocks) > 0:
+            look_at = blocks.pop(0)
+            for block in look_at.neighbors:
+                if block not in checked:
+                    if block.is_shown is False:
+                        the_val = look_at.path_value + 1
+                        block.path_value = the_val
+                        checked.append(block)
+                        blocks.append(block)
 
     # Generates the shortest path through the blocks and gives it to the monsters
     def gen_path(self):

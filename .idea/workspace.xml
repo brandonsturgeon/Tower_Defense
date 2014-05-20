@@ -3,6 +3,7 @@
   <component name="ChangeListManager">
     <list default="true" id="79aa933c-ead2-4a1b-a6af-0d95301dcc22" name="Default" comment="">
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Tower_Defense.py" afterPath="$PROJECT_DIR$/Tower_Defense.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
     </list>
     <ignored path="Tower_Defense.iws" />
     <ignored path=".idea/workspace.xml" />
@@ -28,7 +29,7 @@
       <file leaf-file-name="Tower_Defense.py" pinned="false" current="true" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/Tower_Defense.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state line="628" column="79" selection-start="23802" selection-end="23802" vertical-scroll-proportion="0.78612715" vertical-offset="10353" max-vertical-offset="14926">
+            <state line="266" column="21" selection-start="9648" selection-end="9648" vertical-scroll-proportion="0.3488746" vertical-offset="4254" max-vertical-offset="15776">
               <folding />
             </state>
           </provider>
@@ -52,10 +53,9 @@
     </option>
   </component>
   <component name="ProjectFrameBounds">
-    <option name="x" value="-4" />
-    <option name="y" value="-4" />
-    <option name="width" value="1288" />
-    <option name="height" value="764" />
+    <option name="x" value="640" />
+    <option name="width" value="640" />
+    <option name="height" value="756" />
   </component>
   <component name="ProjectLevelVcsManager" settingsEditedManually="false">
     <OptionsSetting value="true" id="Add" />
@@ -257,8 +257,8 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="-4" y="-4" width="1288" height="764" extended-state="6" />
-    <editor active="false" />
+    <frame x="640" y="0" width="640" height="756" extended-state="0" />
+    <editor active="true" />
     <layout>
       <window_info id="Changes" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
@@ -268,7 +268,7 @@
       <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.4" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="7" side_tool="true" content_ui="tabs" />
-      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.44394618" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
+      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.44544095" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Cvs" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.25" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
       <window_info id="Message" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
@@ -296,6 +296,20 @@
     <breakpoint-manager />
   </component>
   <component name="editorHistoryManager">
+    <entry file="file://$PROJECT_DIR$/Tower_Defense.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="803" column="33" selection-start="32340" selection-end="32340" vertical-scroll-proportion="0.0" vertical-offset="13651" max-vertical-offset="14892">
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Tower_Defense.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="14926">
+          <folding />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/Tower_Defense.py">
       <provider selected="true" editor-type-id="text-editor">
         <state line="117" column="0" selection-start="4131" selection-end="4131" vertical-scroll-proportion="0.0" vertical-offset="1989" max-vertical-offset="12546">
@@ -375,7 +389,7 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/Tower_Defense.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state line="628" column="79" selection-start="23802" selection-end="23802" vertical-scroll-proportion="0.78612715" vertical-offset="10353" max-vertical-offset="14926">
+        <state line="266" column="21" selection-start="9648" selection-end="9648" vertical-scroll-proportion="0.3488746" vertical-offset="4254" max-vertical-offset="15776">
           <folding />
         </state>
       </provider>

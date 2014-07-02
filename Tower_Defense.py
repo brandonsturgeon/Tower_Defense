@@ -285,7 +285,7 @@ class TowerFrame():
             value = self.t_attributes[attr]
             self.image.blit(self.font.render(attr + ": " + str(value), 1, (0, 0, 0)), (5, y_value))
             y_value += self.font.get_height() + 1
-        self.image = OutlinedSurface(self.image, 5).surface
+        #self.image = OutlinedSurface(self.image, 5).surface
 
     @staticmethod
     # Used to split text up into lines that will fit the surface
@@ -675,6 +675,7 @@ class Game():
         self.money = 400
         self.money_mod = 3
         self.grid = []
+        self.start_block = (80, 40)
         self.end_block = None
         self.blocks = pygame.sprite.Group()
         self.hidden_blocks = self.gen_blocks()
@@ -693,8 +694,9 @@ class Game():
     def main(self):
         self.gen_values()
         self.gen_path()
+
         for b in self.hidden_blocks:
-            if b.is_path and b.pos != (80, 40) and b != self.end_block:
+            if b.is_path and b.pos != self.start_block and b != self.end_block:
                 b.image.fill((190, 190, 190))
 
         # Creating the start button
@@ -750,6 +752,9 @@ class Game():
                 if event.type == pygame.MOUSEMOTION:
                     self.mouse_x, self.mouse_y = event.pos
                     self.mouse_pos = (self.mouse_x, self.mouse_y)
+
+                if self.upgrade_button_rect is not None and self.upgrade_button_rect.collidepoint(self.mouse_pos):
+                    print "Colliding with rect"
                 # If interaction is off, stop checking events
                 if not self.can_interact:
                     break
@@ -757,7 +762,7 @@ class Game():
                 # Otherwise, check events
                 else:
                     # Left mouse button
-                    if mouse_button[0] == 1:
+                    if mouse_button[0] or keys[pygame.K_u]:
                         # If colliding with a tower in the shop, change the current tower
                         for tower in tower_shop_list:
                             if tower.rect.collidepoint(self.mouse_pos):
@@ -785,62 +790,60 @@ class Game():
                                                            self.font.get_height()))
                                 break
                             else:
-                                # Upgrade
-                                if self.upgrade_button_rect is not None and self.upgrade_button_rect.collidepoint(self.mouse_pos):
-                                    if self.money >= cur_tower((0, 0)).cost/2:
-                                        cur_tower.upgrade()
-                                        self.money -= cur_tower((0, 0)).cost/2
 
-                                else:
-                                    # Placing a tower
-                                    if cur_tower is not None:
-                                        if self.money >= cur_tower((0, 0)).cost:
+                                # Placing a tower
+                                if cur_tower is not None:
+                                    if self.money >= cur_tower((0, 0)).cost:
 
-                                            # Ground towers (Landmines, etc)
-                                            if cur_tower in self.ground_towers:
-                                                for block in [x for x in self.hidden_blocks if x.is_path]:
-                                                    if block.rect.collidepoint(self.mouse_pos):
-                                                        self.towers.add(cur_tower((block.rect.x, block.rect.y)))
-                                                        self.money -= cur_tower((0, 0)).cost
-                                                        cur_tower = None
-                                                        break
-                                                break
-                                            else:
-                                                # Regular towers
-                                                for block in self.blocks:
-                                                    if block.rect.collidepoint(self.mouse_pos):
-                                                        self.towers.add(cur_tower((block.rect.x, block.rect.y)))
-                                                        self.money -= cur_tower((0, 0)).cost
-                                                        block.is_shown = True
-                                                        cur_tower = None
-                                                        break
-                                                break
-                                    else:
-                                        # If clicked on a tower, toggle the info panel
-                                        for t in self.towers:
-                                            if t.rect.collidepoint(self.mouse_pos):
-                                                if tower_info == t:
-                                                    tower_info = None
-                                                    self.upgrade_button_rect = None
-                                                else:
-                                                    tower_info = t
-                                                    self.upgrade_button_rect = pygame.Rect((t.rect.x + 240,
-                                                                                            t.rect.y + 290),
-                                                                                           (100, 50))
-                                                break
+                                        # Ground towers (Landmines, etc)
+                                        if cur_tower in self.ground_towers:
+                                            for block in [x for x in self.hidden_blocks if x.is_path]:
+                                                if block.rect.collidepoint(self.mouse_pos):
+                                                    self.towers.add(cur_tower((block.rect.x, block.rect.y)))
+                                                    self.money -= cur_tower((0, 0)).cost
+                                                    cur_tower = None
+                                                    break
+                                            break
                                         else:
-                                            # Create a path
-                                            if self.money >= 10:
-                                                if not self.collide_border(self.mouse_pos):
-                                                    for block in self.hidden_blocks:
-                                                        if block.rect.collidepoint((self.mouse_x, self.mouse_y)):
+                                            # Regular towers
+                                            for block in self.blocks:
+                                                if block.rect.collidepoint(self.mouse_pos):
+                                                    self.towers.add(cur_tower((block.rect.x, block.rect.y)))
+                                                    self.money -= cur_tower((0, 0)).cost
+                                                    block.is_shown = True
+                                                    cur_tower = None
+                                                    break
+                                            break
+                                else:
+                                    # If clicked on a tower, toggle the info panel
+                                    for t in self.towers:
+                                        if t.rect.collidepoint(self.mouse_pos):
+                                            if tower_info == t:
+                                                tower_info = None
+                                                self.upgrade_button_rect = pygame.Rect((0, 0), (0, 0))
+                                            else:
+                                                tower_info = t
+                                                self.upgrade_button_rect = pygame.Rect((t.rect.x + 90,
+                                                                                        t.rect.y + 90),
+                                                                                       (100, 50))
+                                                print self.upgrade_button_rect
+                                            break
+                                    else:
+                                        # Create a path
+                                        if self.money >= 10:
+                                            if not self.collide_border(self.mouse_pos):
+                                                # Makes sure you can't click on the first or end block
+                                                first_last = (self.start_block, self.end_block)
+                                                for block in self.hidden_blocks:
+                                                    if block.rect.collidepoint((self.mouse_x, self.mouse_y)):
+                                                        if block.pos not in first_last:
                                                             self.money -= 10
                                                             self.hidden_blocks.remove(block)
                                                             self.blocks.add(block)
                                                             block.is_shown = True
                                                             block.is_path = False
                                                             self.update_path()
-                                                            break
+                                                        break
 
                     # Middle mouse button (Or the letter T)
                     elif mouse_button[1] or keys[pygame.K_t]:

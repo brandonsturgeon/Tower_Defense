@@ -78,6 +78,7 @@ class Monster(pygame.sprite.Sprite):
         self.image_inside.fill((0, 255, 0))
         self.image.blit(self.image_inside, (1, 1))
         self.pos = (80, 40)
+        self.real_pos = (80, 40)
         self.rect = pygame.Rect(self.pos, self.image.get_size())
         self.speed = 2
         self.speed_mod = 1
@@ -116,16 +117,18 @@ class Monster(pygame.sprite.Sprite):
 
                 # Check to see the most the monster can move
                 for speed in range(0, self.speed+1):
-                    t_dir = tuple([x*speed*self.speed_mod for x in self.the_dir])
+                    t_dir = tuple([x * speed * self.speed_mod for x in self.the_dir])
 
                     # Monster can only move this much
                     if self.rect.move(t_dir) == self.nodes[0].rect:
                         self.rect.move_ip(t_dir)
+                        self.real_pos += t_dir
                         self.cur_node = self.nodes.pop(0)
                         break
                 else:
                     # The monster can move by self.speed
-                    self.rect.move_ip(tuple([x*self.speed*self.speed_mod for x in self.the_dir]))
+                    self.real_pos += tuple([x * self.speed * self.speed_mod for x in self.the_dir])
+                    self.pos = tuple(map(round, self.real_pos))
 
                 # Conditions for the monster to die
                 die_conditions = [self.rect.top >= window.get_height(),
@@ -135,7 +138,7 @@ class Monster(pygame.sprite.Sprite):
                     self.kill()
                     return self.value
 
-                # Resetting the modifiers
+                # Resetting the modifiers, they'll be changed if the monster is under an effect
                 self.speed_mod = 1
                 self.damage_mod = 1
         return 0
@@ -147,9 +150,9 @@ class Monster(pygame.sprite.Sprite):
         # Returns the amount of money to grand the player if the monster dies
         if self.health <= 0:
             self.kill()
-            return self.value
+            return self.value, value*self.damage_mod
         else:
-            return None
+            return None, value*self.damage_mod
 
 
 class FastMonster(Monster):
@@ -215,12 +218,14 @@ class Projectile(pygame.sprite.Sprite):
 
     def do_damage(self, monsters):
         for monster in monsters:
-            # Does damage to the target, and adds kills and money rewards if it dies
+            # Does damage to the target, and adds kills and money rewards if it dies, also adds damage_done to tower
             if monster == self.target:
+                # dmg_result returns (None/Value of monster, Damage done by projectile)
                 dmg_result = monster.damage(self.damage)
-                if dmg_result is not None:
+                if dmg_result[0] is not None:
                     self.tower.kills += 1
-                    self.tower.turn_yield += dmg_result
+                    self.tower.turn_yield += dmg_result[0]
+                self.tower.damage_done += dmg_result[1]
                 break
 
 
@@ -233,12 +238,16 @@ class MortarShell(Projectile):
     def do_damage(self, monsters):
         for monster in monsters:
             if pygame.sprite.collide_circle(self, monster):
-                monster.damage(self.damage)
+                dmg_result = monster.damage(self.damage)
+                if dmg_result[0] is not None:
+                    self.tower.kills += 1
+                    self.tower.turn_yield += dmg_result[0]
+                self.tower.damage_done += dmg_result[1]
 
 
 # Creates a frame full of information for the selected tower
 class TowerFrame():
-    def __init__(self, tower):
+    def __init__(self, tower, extra_attributes=None):
         self.tower = tower
         self.image = pygame.Surface((200, 300)).convert()
         self.image.fill((200, 115, 0))
@@ -251,10 +260,13 @@ class TowerFrame():
         else:
             dps_calc = self.tower.damage/self.tower.fire_rate
 
-        self.t_attributes = {"Name": self.tower.name,
-                             "Fire Rate": self.tower.fire_rate,
-                             "Damage": self.tower.damage,
-                             "DPS": dps_calc}
+        tower_attributes = {"Name": self.tower.name,
+                            "Fire Rate": self.tower.fire_rate,
+                            "Damage": self.tower.damage,
+                            "DPS": dps_calc}
+        if extra_attributes is None:
+            extra_attributes = dict()
+        self.t_attributes = dict(tower_attributes.items() + extra_attributes.items())
 
         # Upgrades
         self.font = pygame.font.Font(None, 18)
@@ -280,8 +292,8 @@ class TowerFrame():
             y_value += self.font.get_height() + 1
         y_value += 5
 
-        # Blits the tower's attributes
-        for attr in ["Name", "Fire Rate", "Damage", "DPS"]:
+        # Blits the tower's attributes in this order, tacking all extra stuff at the end
+        for attr in ["Name", "Fire Rate", "Damage", "DPS"]+extra_attributes.keys():
             value = self.t_attributes[attr]
             self.image.blit(self.font.render(attr + ": " + str(value), 1, (0, 0, 0)), (5, y_value))
             y_value += self.font.get_height() + 1
@@ -314,6 +326,7 @@ class Tower(pygame.sprite.Sprite):
         self.grid_pos = tuple([x/40 for x in self.pos])
         self.image = pygame.Surface((40, 40)).convert()
         self.kills = 0
+        self.damage_done = 0
         self.image.fill((255, 0, 0))
         self.rect = pygame.Rect(self.pos, self.image.get_size())
         self.projectile = pygame.Surface((10, 10))
@@ -361,6 +374,9 @@ class Tower(pygame.sprite.Sprite):
         self.projectiles.update(monsters, screen_rect)
         self.projectiles.draw(screen)
 
+    def update_info(self):
+        self.frame = TowerFrame(self)
+
     def shoot(self):
         if time.time() - self.last_shot >= self.fire_rate:
             self.projectiles.add(Projectile(pos=(self.rect.x, self.rect.y),
@@ -376,6 +392,9 @@ class Tower(pygame.sprite.Sprite):
             self.damage += 5
             self.projectile_speed -= 0.5
             self.level += 1
+            self.update_info()
+            return True
+        return False
 
 
 class MortarTower(Tower):
@@ -397,12 +416,18 @@ class MortarTower(Tower):
 
         self.frame = TowerFrame(self)
 
+    def update_info(self):
+        self.frame = TowerFrame(self)
+
     def upgrade(self):
         if self.level < 5:
             self.damage += 5
             self.radius += 10
             self.projectile_speed += 0.25
             self.level += 1
+            self.update_info()
+            return True
+        return False
 
 
 class RapidTower(Tower):
@@ -420,11 +445,17 @@ class RapidTower(Tower):
 
         self.frame = TowerFrame(self)
 
+    def update_info(self):
+        self.frame = TowerFrame(self)
+
     def upgrade(self):
         if self.level < 5:
             self.damage += 1
             self.fire_rate -= 0.025
             self.level += 1
+            self.update_info()
+            return True
+        return False
 
 
 class SlowTower(Tower):
@@ -435,22 +466,29 @@ class SlowTower(Tower):
         self.fire_rate = 0
         self.damage = 0
         self.radius = 50
+        self.speed_mod = 0.75
         self.description = "A tower which slows all enemies in its radius."
         self.cost = 75
-        self.speed_mod = 0.75
-
-        self.frame = TowerFrame(self)
+        self.extra_attributes = {"Slow Amount: ": str((1-self.speed_mod) * 100) + "%"}
+        self.frame = TowerFrame(self, self.extra_attributes)
 
     def update(self, monsters, screen, screen_rect):
         for monster in monsters:
             if pygame.sprite.collide_circle(self, monster):
                 monster.speed_mod = self.speed_mod
 
+    def update_info(self):
+        self.extra_attributes = {"Slow Amount: ": str((1-self.speed_mod) * 100) + "%"}
+        self.frame = TowerFrame(self, self.extra_attributes)
+
     def upgrade(self):
         if self.level < 5:
             self.speed_mod -= 0.15
             self.radius += 5
             self.level += 1
+            self.update_info()
+            return True
+        return False
 
 
 class MultiShot(Tower):
@@ -461,16 +499,17 @@ class MultiShot(Tower):
         self.fire_rate = 1.5
         self.damage = 20
         self.radius = 150
-        self.description = "A tower which hits up to 3 nearby enemy units."
+        self.max_targets = 3
+        self.description = "A tower which hits multiple enemy units."
         self.cost = 125
         self.target = []
-        self.max_targets = 3
-        self.frame = TowerFrame(self)
+        self.extra_attributes = {"Max Targets": str(self.max_targets)}
+        self.frame = TowerFrame(self, self.extra_attributes)
 
     def update(self, monsters, screen, screen_rect):
         self.target = []
 
-        # Gets up to 5 nearby targets
+        # Gets nearby targets
         for monster in monsters:
             if len(self.target) == 5:
                 break
@@ -481,6 +520,10 @@ class MultiShot(Tower):
 
         self.projectiles.update(monsters, screen_rect)
         self.projectiles.draw(screen)
+
+    def update_info(self):
+        self.extra_attributes = {"Max Targets": str(self.max_targets)}
+        self.frame = TowerFrame(self, self.extra_attributes)
 
     def shoot(self):
         if time.time() - self.last_shot >= self.fire_rate:
@@ -497,9 +540,12 @@ class MultiShot(Tower):
         if self.level < 5:
             self.damage += 5
             if self.max_targets < 5:
-                self.max_target += 1
+                self.max_targets += 1
             self.radius += 5
             self.level += 1
+            self.update_info()
+            return True
+        return False
 
 
 class LandMine(Tower):
@@ -519,6 +565,9 @@ class LandMine(Tower):
             if self.rect.colliderect(monster.rect):
                 self.effect(monster, monsters)
 
+    def update_info(self):
+        self.frame = TowerFrame(self)
+
     def effect(self, target, monsters):
         for monster in monsters:
             if pygame.sprite.collide_circle(target, monster):
@@ -530,6 +579,9 @@ class LandMine(Tower):
             self.damage += 20
             self.upgrade_cost += 5
             self.level += 1
+            self.update_info()
+            return True
+        return False
 
 
 class AmpField(Tower):
@@ -540,16 +592,20 @@ class AmpField(Tower):
         self.fire_rate = 0
         self.damage = 0
         self.radius = 20
-        self.description = "A block which increases the damage taken by all enemies on it by 50%"
-        self.cost = 25
         self.damage_mod = 1.5
-
-        self.frame = TowerFrame(self)
+        self.description = "A block which increases the damage taken by all enemies on it."
+        self.cost = 25
+        self.extra_attributes = {"Damage Amp: ": str((self.damage_mod-1) * 100) + "%"}
+        self.frame = TowerFrame(self, self.extra_attributes)
 
     def update(self, monsters, screen, screen_rect):
         for monster in monsters:
             if self.rect.colliderect(monster.rect):
                 self.effect(monster)
+
+    def update_info(self):
+        self.extra_attributes = {"Damage Amp: ": str((self.damage_mod-1) * 100) + "%"}
+        self.frame = TowerFrame(self, self.extra_attributes)
 
     @staticmethod
     def effect(target):
@@ -560,6 +616,9 @@ class AmpField(Tower):
             self.damage_mod += 0.5
             self.upgrade_cost += 5
             self.level += 1
+            self.update_info()
+            return True
+        return False
 
 
 # A tab for each tower down at the bottom
@@ -575,7 +634,7 @@ class TowerShopTab():
         self.cost = tower.cost
         self.surface = pygame.Surface((125, 40)).convert()
         self.rect = pygame.Rect(self.pos, self.surface .get_size())
-        self.font = pygame.font.Font(None, 15)
+        self.font = pygame.font.Font(None, 15)  
         self.info_tab = tower.frame.image
 
         self.surface_inside.blit(pygame.transform.scale(self.tower.image, (20, 20)), (5, 10))
@@ -672,7 +731,7 @@ class Game():
 
         self.cursor = pygame.Surface((1000, 700)).convert()
         self.core_health = 100
-        self.money = 400
+        self.money = 4000
         self.money_mod = 3
         self.grid = []
         self.start_block = (80, 40)
@@ -753,8 +812,6 @@ class Game():
                     self.mouse_x, self.mouse_y = event.pos
                     self.mouse_pos = (self.mouse_x, self.mouse_y)
 
-                if self.upgrade_button_rect is not None and self.upgrade_button_rect.collidepoint(self.mouse_pos):
-                    print "Colliding with rect"
                 # If interaction is off, stop checking events
                 if not self.can_interact:
                     break
@@ -762,88 +819,95 @@ class Game():
                 # Otherwise, check events
                 else:
                     # Left mouse button
-                    if mouse_button[0] or keys[pygame.K_u]:
+                    if mouse_button[0]:
                         # If colliding with a tower in the shop, change the current tower
                         for tower in tower_shop_list:
                             if tower.rect.collidepoint(self.mouse_pos):
                                 cur_tower = self.tower_dic[tower.tower.name]
                                 break
                         else:
-                            # If the play button is pressed, start the wave
-                            if self.start_button_rect.collidepoint(self.mouse_pos):
-                                self.monsters = self.gen_monsters(random.randint(10, 25), self.wave)
-                                if len(self.monsters) > 0:
-                                    self.start_button.fill((255, 0, 0))
-                                    self.start_button.blit(self.font.render("Playing...", 1, (0, 0, 255)),
-                                                          (self.start_button.get_width()/2 -
-                                                           self.font.size("Playing...")[0]/2,
-                                                           self.start_button.get_height()/2 -
-                                                           self.font.get_height()))
-                                    self.can_interact = False
-                                    self.wave += 1
-                                else:
-                                    self.start_button.fill((255, 0, 0))
-                                    self.start_button.blit(self.font.render("No Path...", 1, (0, 0, 255)),
-                                                          (self.start_button.get_width()/2 -
-                                                           self.font.size("No Path...")[0]/2,
-                                                           self.start_button.get_height()/2 -
-                                                           self.font.get_height()))
-                                break
+                            # Tower upgrades
+                            if self.upgrade_button_rect is not None and self.upgrade_button_rect.collidepoint(self.mouse_pos):
+                                if self.money >= tower_info.cost/2:
+                                    # .upgrade() returns true or false based on if it can be upgraded again
+                                    if tower_info.upgrade():
+                                        self.money -= tower_info.cost/2
                             else:
-
-                                # Placing a tower
-                                if cur_tower is not None:
-                                    if self.money >= cur_tower((0, 0)).cost:
-
-                                        # Ground towers (Landmines, etc)
-                                        if cur_tower in self.ground_towers:
-                                            for block in [x for x in self.hidden_blocks if x.is_path]:
-                                                if block.rect.collidepoint(self.mouse_pos):
-                                                    self.towers.add(cur_tower((block.rect.x, block.rect.y)))
-                                                    self.money -= cur_tower((0, 0)).cost
-                                                    cur_tower = None
-                                                    break
-                                            break
-                                        else:
-                                            # Regular towers
-                                            for block in self.blocks:
-                                                if block.rect.collidepoint(self.mouse_pos):
-                                                    self.towers.add(cur_tower((block.rect.x, block.rect.y)))
-                                                    self.money -= cur_tower((0, 0)).cost
-                                                    block.is_shown = True
-                                                    cur_tower = None
-                                                    break
-                                            break
-                                else:
-                                    # If clicked on a tower, toggle the info panel
-                                    for t in self.towers:
-                                        if t.rect.collidepoint(self.mouse_pos):
-                                            if tower_info == t:
-                                                tower_info = None
-                                                self.upgrade_button_rect = pygame.Rect((0, 0), (0, 0))
-                                            else:
-                                                tower_info = t
-                                                self.upgrade_button_rect = pygame.Rect((t.rect.x + 90,
-                                                                                        t.rect.y + 90),
-                                                                                       (100, 50))
-                                                print self.upgrade_button_rect
-                                            break
+                                # If the play button is pressed, start the wave
+                                if self.start_button_rect.collidepoint(self.mouse_pos):
+                                    self.monsters = self.gen_monsters(random.randint(10, 25), self.wave)
+                                    if len(self.monsters) > 0:
+                                        self.start_button.fill((255, 0, 0))
+                                        self.start_button.blit(self.font.render("Playing...", 1, (0, 0, 255)),
+                                                              (self.start_button.get_width()/2 -
+                                                               self.font.size("Playing...")[0]/2,
+                                                               self.start_button.get_height()/2 -
+                                                               self.font.get_height()))
+                                        self.can_interact = False
+                                        self.wave += 1
                                     else:
-                                        # Create a path
-                                        if self.money >= 10:
-                                            if not self.collide_border(self.mouse_pos):
-                                                # Makes sure you can't click on the first or end block
-                                                first_last = (self.start_block, self.end_block)
-                                                for block in self.hidden_blocks:
-                                                    if block.rect.collidepoint((self.mouse_x, self.mouse_y)):
-                                                        if block.pos not in first_last:
-                                                            self.money -= 10
-                                                            self.hidden_blocks.remove(block)
-                                                            self.blocks.add(block)
-                                                            block.is_shown = True
-                                                            block.is_path = False
-                                                            self.update_path()
+                                        self.start_button.fill((255, 0, 0))
+                                        self.start_button.blit(self.font.render("No Path...", 1, (0, 0, 255)),
+                                                              (self.start_button.get_width()/2 -
+                                                               self.font.size("No Path...")[0]/2,
+                                                               self.start_button.get_height()/2 -
+                                                               self.font.get_height()))
+                                    break
+                                else:
+
+                                    # Placing a tower
+                                    if cur_tower is not None and not self.collide_border(self.mouse_pos):
+                                        if self.money >= cur_tower((0, 0)).cost:
+
+                                            # Ground towers (Landmines, etc)
+                                            if cur_tower in self.ground_towers:
+                                                for block in [x for x in self.hidden_blocks if x.is_path]:
+                                                    if block.rect.collidepoint(self.mouse_pos):
+                                                        self.towers.add(cur_tower((block.rect.x, block.rect.y)))
+                                                        self.money -= cur_tower((0, 0)).cost
+                                                        cur_tower = None
                                                         break
+                                                break
+                                            else:
+                                                # Regular towers
+                                                for block in self.blocks:
+                                                    if block.rect.collidepoint(self.mouse_pos):
+                                                        self.towers.add(cur_tower((block.rect.x, block.rect.y)))
+                                                        self.money -= cur_tower((0, 0)).cost
+                                                        block.is_shown = True
+                                                        cur_tower = None
+                                                        break
+                                                break
+                                    else:
+                                        # If clicked on a tower, toggle the info panel
+                                        for t in self.towers:
+                                            if t.rect.collidepoint(self.mouse_pos):
+                                                if tower_info == t:
+                                                    tower_info = None
+                                                    self.upgrade_button_rect = pygame.Rect((0, 0), (0, 0))
+                                                else:
+                                                    tower_info = t
+                                                    self.upgrade_button_rect = pygame.Rect((t.rect.x + 140,
+                                                                                            t.rect.y + 115),
+                                                                                           (100, 50))
+                                                    print self.upgrade_button_rect
+                                                break
+                                        else:
+                                            # Create a path
+                                            if self.money >= 10:
+                                                if not self.collide_border(self.mouse_pos):
+                                                    # Makes sure you can't click on the first or end block
+                                                    first_last = (self.start_block, self.end_block)
+                                                    for block in self.hidden_blocks:
+                                                        if block.rect.collidepoint((self.mouse_x, self.mouse_y)):
+                                                            if block.pos not in first_last:
+                                                                self.money -= 10
+                                                                self.hidden_blocks.remove(block)
+                                                                self.blocks.add(block)
+                                                                block.is_shown = True
+                                                                block.is_path = False
+                                                                self.update_path()
+                                                            break
 
                     # Middle mouse button (Or the letter T)
                     elif mouse_button[1] or keys[pygame.K_t]:
@@ -853,10 +917,11 @@ class Game():
                                 if tower.rect.collidepoint((self.mouse_x, self.mouse_y)):
                                     self.money += tower.value/2
                                     tower.kill()
+                                    cur_tower = tower_info = None
                                     break
 
-                    # Right mouse button
-                    elif mouse_button[2]:
+                    # Right mouse button (Or the letter U)
+                    elif mouse_button[2] or keys[pygame.K_u]:
                         cur_tower = None
                         # If a block is clicked, remove it
                         if not self.collide_border(self.mouse_pos):

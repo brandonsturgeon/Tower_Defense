@@ -100,6 +100,7 @@ class Monster(pygame.sprite.Sprite):
 
         if time.time() - self.spawn_time >= self.move_time:
             self.can_move = True
+            # If it's hit the last block
             if len(self.nodes) < 1:
                 self.kill()
                 return self.value
@@ -122,13 +123,15 @@ class Monster(pygame.sprite.Sprite):
                     # Monster can only move this much
                     if self.rect.move(t_dir) == self.nodes[0].rect:
                         self.rect.move_ip(t_dir)
-                        self.real_pos += t_dir
+                        self.real_pos = tuple(map(sum, zip(self.real_pos, t_dir)))
                         self.cur_node = self.nodes.pop(0)
                         break
                 else:
                     # The monster can move by self.speed
-                    self.real_pos += tuple([x * self.speed * self.speed_mod for x in self.the_dir])
+                    a = tuple([x * self.speed * self.speed_mod for x in self.the_dir])
+                    self.real_pos = tuple(map(sum, zip(self.real_pos, a)))
                     self.pos = tuple(map(round, self.real_pos))
+                    self.rect.x, self.rect.y = self.pos
 
                 # Conditions for the monster to die
                 die_conditions = [self.rect.top >= window.get_height(),
@@ -144,15 +147,15 @@ class Monster(pygame.sprite.Sprite):
         return 0
 
     # Does damage to the monster and checks if it dies
-    def damage(self, value):
-        self.health -= value*self.damage_mod
+    def damage(self, damage):
+        self.health -= damage*self.damage_mod
 
-        # Returns the amount of money to grand the player if the monster dies
+        # Returns the amount of money to grant the player if the monster dies and also how much damage was done
         if self.health <= 0:
             self.kill()
-            return self.value, value*self.damage_mod
+            return self.value, damage*self.damage_mod
         else:
-            return None, value*self.damage_mod
+            return None, damage*self.damage_mod
 
 
 class FastMonster(Monster):
@@ -192,19 +195,25 @@ class Projectile(pygame.sprite.Sprite):
     def update(self, monsters, screen):
 
         # Kills the projectile if it doesn't get there before the target dies
-        if self.target is None:
+        if self.target is None or self.target.health <= 0:
             self.kill()
             return
 
         # Calculates where the projectile needs to go
         self.angle = math.atan2((self.target.rect.centery-self.rect.centery),
                                 (self.target.rect.centerx-self.rect.centerx))
-        self.x_speed = math.cos(self.angle)*self.speed
-        self.y_speed = math.sin(self.angle)*self.speed
 
-        # If the bullet is within range, it hit the target
-        if abs(self.rect.centerx - self.target.rect.centerx) <= 10:
-            if abs(self.rect.centery - self.target.rect.centery) <= 10:
+        distance = math.hypot(self.target.rect.centerx - self.rect.centerx,
+                              self.target.rect.centery - self.rect.centery)
+        print distance
+        mod = self.speed
+        # Calculates the X and Y speed
+        self.x_speed = math.cos(self.angle)*mod
+        self.y_speed = math.sin(self.angle)*mod
+
+        # If the projectile is within range, it hit the target
+        if abs(self.rect.centerx - self.target.rect.centerx) <= 20:
+            if abs(self.rect.centery - self.target.rect.centery) <= 20:
                 self.do_damage(monsters)
                 self.kill()
             else:
@@ -263,7 +272,8 @@ class TowerFrame():
         tower_attributes = {"Name": self.tower.name,
                             "Fire Rate": self.tower.fire_rate,
                             "Damage": self.tower.damage,
-                            "DPS": dps_calc}
+                            "DPS": dps_calc,
+                            "Damage Done": self.tower.damage_done}
         if extra_attributes is None:
             extra_attributes = dict()
         self.t_attributes = dict(tower_attributes.items() + extra_attributes.items())
@@ -293,7 +303,7 @@ class TowerFrame():
         y_value += 5
 
         # Blits the tower's attributes in this order, tacking all extra stuff at the end
-        for attr in ["Name", "Fire Rate", "Damage", "DPS"]+extra_attributes.keys():
+        for attr in ["Name", "Fire Rate", "Damage", "DPS", "Damage Done"]+extra_attributes.keys():
             value = self.t_attributes[attr]
             self.image.blit(self.font.render(attr + ": " + str(value), 1, (0, 0, 0)), (5, y_value))
             y_value += self.font.get_height() + 1

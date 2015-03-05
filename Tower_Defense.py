@@ -581,7 +581,7 @@ class LandMine(Tower):
     def effect(self, target, monsters):
         for monster in monsters:
             if pygame.sprite.collide_circle(target, monster):
-                monster.health -= self.damage
+                monster.damage(self.damage)
         self.kill()
 
     def upgrade(self):

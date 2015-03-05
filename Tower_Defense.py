@@ -205,11 +205,11 @@ class Projectile(pygame.sprite.Sprite):
 
         distance = math.hypot(self.target.rect.centerx - self.rect.centerx,
                               self.target.rect.centery - self.rect.centery)
-        print distance
-        mod = self.speed
+        mod = self.target.speed+1
         # Calculates the X and Y speed
-        self.x_speed = math.cos(self.angle)*mod
-        self.y_speed = math.sin(self.angle)*mod
+        xspeed, yspeed = math.cos(self.angle)*mod, math.sin(self.angle)*mod
+        self.x_speed = xspeed + xspeed/abs(xspeed) if xspeed != 0 else 0
+        self.y_speed = yspeed + yspeed/abs(yspeed) if yspeed != 0 else 0
 
         # If the projectile is within range, it hit the target
         if abs(self.rect.centerx - self.target.rect.centerx) <= 20:
@@ -900,7 +900,6 @@ class Game():
                                                     self.upgrade_button_rect = pygame.Rect((t.rect.x + 140,
                                                                                             t.rect.y + 115),
                                                                                            (100, 50))
-                                                    print self.upgrade_button_rect
                                                 break
                                         else:
                                             # Create a path

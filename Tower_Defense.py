@@ -195,7 +195,7 @@ class Projectile(pygame.sprite.Sprite):
     def update(self, monsters, screen):
 
         # Kills the projectile if it doesn't get there before the target dies
-        if self.target is None or self.target.health <= 0:
+        if self.target is None: #or self.target.health <= 0:
             self.kill()
             return
 

@@ -174,6 +174,20 @@ class FastMonster(Monster):
         self.name = "Fast Monster"
         self.description = "A small monster with very quick movement speed, but low health."
 
+class ArmorMonster(Monster):
+  def __init__(self, move_time, nodes):
+    Monster.__init__(self, move_time, nodes)
+    self.image_inside.fill((142, 163, 12))
+    self.image.blit(self.image_inside, (1, 1))
+    self.rect = pygame.Rect(self.pos, (40, 40))
+    self.speed = 1
+    self.diag_speed = 3
+    self.value = 10
+    self.health = 500
+
+    self.name = "Armored Monster"
+    self.description = "An armored monster that takes progressively more damage as it is hit"
+
 
 # Base Projectile class
 class Projectile(pygame.sprite.Sprite):
@@ -195,7 +209,7 @@ class Projectile(pygame.sprite.Sprite):
     def update(self, monsters, screen):
 
         # Kills the projectile if it doesn't get there before the target dies
-        if self.target is None: #or self.target.health <= 0:
+        if self.target is None:
             self.kill()
             return
 
@@ -1160,7 +1174,7 @@ class Game():
         if len(path) > 1:
             # Randomly selects which monsters to spawn
             for x in range(number):
-                add_monster = random.choice([Monster, FastMonster])
+                add_monster = random.choice([Monster, FastMonster, ArmorMonster])
                 ret_group.add(add_monster(random.randint(1, 5), list(path)))
 
         return ret_group

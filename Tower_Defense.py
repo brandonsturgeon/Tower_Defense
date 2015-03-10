@@ -1191,8 +1191,8 @@ class Game():
             # Randomly selects which monsters to spawn
             for x in range(number):
               r = random.randint(0, 1000)
-              print r
               selected = None
+              # Loops through the monster dictionary and randomly decides what to choose
               for key, monster in iter(sorted(self.monsters_dict.iteritems())):
                 if r < key:
                   if type(monster) is list:

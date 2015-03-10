@@ -1203,8 +1203,6 @@ class Game():
                     break
               else:
                 selected = Monster
-              print "Selected: "+str(selected)
-              print ""
               ret_group.add(selected(random.randint(1, 5), list(path)))
 
         return ret_group

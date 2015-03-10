@@ -786,7 +786,7 @@ class Game():
         self.mouse_y = 0
         self.mouse_pos = (self.mouse_x, self.mouse_y)
         self.wave = 0
-        self.monsters_dict = {Monster: 1000, FastMonster: 500, [ArmorMonster]: 125}
+        self.monsters_dict = {1000: Monster, 500: FastMonster, 125: [ArmorMonster]}
 
         self.main()
 
@@ -1190,8 +1190,22 @@ class Game():
         if len(path) > 1:
             # Randomly selects which monsters to spawn
             for x in range(number):
-                add_monster = random.choice([Monster, FastMonster, ArmorMonster])
-                ret_group.add(add_monster(random.randint(1, 5), list(path)))
+              r = random.randint(0, 1000)
+              print r
+              selected = None
+              for key, monster in iter(sorted(self.monsters_dict.iteritems())):
+                if r < key:
+                  if type(monster) is list:
+                    selected = random.choice(monster)
+                    break
+                  else:
+                    selected = monster
+                    break
+              else:
+                selected = Monster
+              print "Selected: "+str(selected)
+              print ""
+              ret_group.add(selected(random.randint(1, 5), list(path)))
 
         return ret_group
 

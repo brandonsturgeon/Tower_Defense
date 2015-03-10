@@ -786,6 +786,10 @@ class Game():
         self.mouse_y = 0
         self.mouse_pos = (self.mouse_x, self.mouse_y)
         self.wave = 0
+
+        # Used to randomly seelct a group of monsters.
+        # Structure is Number: ClassName (Or List with Classnames)
+        # The lower the number, the lower the chance of spawning.
         self.monsters_dict = {1000: Monster, 500: FastMonster, 125: [ArmorMonster]}
 
         self.main()
@@ -1188,7 +1192,9 @@ class Game():
         # Gen_path will return a list with a length of 1 if there is no valid path
         # So we don't spawn monsters if the path isn't valid
         if len(path) > 1:
-            # Randomly selects which monsters to spawn
+            # Randomly generates a number between 1 and 1000, and then goes through the monsters_dictionary
+            # In ascending order and checks if the number is less than the monster's generation value
+            # Then chooses a monster to spawn
             for x in range(number):
               r = random.randint(0, 1000)
               selected = None

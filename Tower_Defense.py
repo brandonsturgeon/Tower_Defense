@@ -786,6 +786,7 @@ class Game():
         self.mouse_y = 0
         self.mouse_pos = (self.mouse_x, self.mouse_y)
         self.wave = 0
+        self.monsters_dict = {Monster: 1000, FastMonster: 500, [ArmorMonster]: 125}
 
         self.main()
 

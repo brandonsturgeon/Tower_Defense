@@ -183,10 +183,25 @@ class ArmorMonster(Monster):
     self.speed = 1
     self.diag_speed = 3
     self.value = 10
-    self.health = 500
+    self.health = 100
+    self.armor = 500
 
     self.name = "Armored Monster"
     self.description = "An armored monster that takes progressively more damage as it is hit"
+
+  # Does damage to the monster and checks if it dies
+  def damage(self, damage):
+    if self.armor > 0:
+      self.armor -= 25
+    else:
+      self.health -= damage*self.damage_mod
+
+    # Returns the amount of money to grant the player if the monster dies and also how much damage was done
+    if self.health <= 0:
+        self.kill()
+        return self.value, damage*self.damage_mod
+    else:
+        return None, damage*self.damage_mod
 
 
 # Base Projectile class

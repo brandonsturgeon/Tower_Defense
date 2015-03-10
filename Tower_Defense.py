@@ -366,7 +366,7 @@ class Tower(pygame.sprite.Sprite):
         self.image = pygame.Surface((40, 40)).convert()
         self.kills = 0
         self.damage_done = 0
-        self.image.fill((255, 0, 0))
+        self.image.fill((225, 50, 50))
         self.rect = pygame.Rect(self.pos, self.image.get_size())
         self.projectile = pygame.Surface((10, 10))
         self.projectile.fill((0, 255, 255))

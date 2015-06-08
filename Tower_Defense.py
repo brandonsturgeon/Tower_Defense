@@ -309,7 +309,7 @@ class TowerFrame():
 
         # Upgrades
         self.font = pygame.font.Font(None, 18)
-        self.upgrade_button = pygame.Surface((100, 50))
+        self.upgrade_button = pygame.Surface((100, 50)).convert()
         self.upgrade_button.fill((0, 255, 0))
         self.upgrade_button.blit(self.font.render("Upgrade", 1, (0, 0, 0)),
                                  (self.upgrade_button.get_width()/2 - self.font.size("Upgrade")[0]/2,
@@ -368,7 +368,7 @@ class Tower(pygame.sprite.Sprite):
         self.damage_done = 0
         self.image.fill((225, 50, 50))
         self.rect = pygame.Rect(self.pos, self.image.get_size())
-        self.projectile = pygame.Surface((10, 10))
+        self.projectile = pygame.Surface((10, 10)).convert()
         self.projectile.fill((0, 255, 255))
         self.projectile_speed = 5
         self.projectiles = pygame.sprite.Group()
@@ -440,9 +440,9 @@ class MortarTower(Tower):
     def __init__(self, pos):
         Tower.__init__(self, pos)
         self.name = "Mortar Tower"
-        self.image = pygame.Surface((40, 40))
+        self.image = pygame.Surface((40, 40)).convert()
         self.image.fill((0, 0, 255))
-        self.projectile = pygame.Surface((15, 15))
+        self.projectile = pygame.Surface((15, 15)).convert()
         self.projectile.fill((255, 150, 0))
         self.projectile_speed = 3
 
@@ -474,7 +474,7 @@ class RapidTower(Tower):
         Tower.__init__(self, pos)
         self.name = "Rapid-fire Tower"
         self.image.fill((120, 0, 255))
-        self.projectile = pygame.Surface((5, 5))
+        self.projectile = pygame.Surface((5, 5)).convert()
         self.projectile.fill((120, 0, 255))
         self.projectile_speed = 10
         self.fire_rate = 0.25
@@ -734,7 +734,8 @@ class Game():
     def __init__(self):
         pygame.init()
         self.clock = pygame.time.Clock()
-        self.game_window = pygame.display.set_mode((1000, 700))
+        flags = pygame.DOUBLEBUF | pygame.FULLSCREEN | pygame.HWSURFACE
+        self.game_window = pygame.display.set_mode((1000, 700), flags)
         self.game_window.fill((0, 255, 255))
         self.game_surface = pygame.Surface((1000, 560)).convert()
         self.game_surface_rect = pygame.Rect((0, 0), self.game_surface.get_size())
@@ -763,7 +764,7 @@ class Game():
                           "Slow Tower": SlowTower,
                           "Amp Field": AmpField,
                           "Multi Shot Tower": MultiShot}
-        self.start_button = pygame.Surface((130, 130))
+        self.start_button = pygame.Surface((130, 130)).convert()
         self.start_button_rect = pygame.Rect((870, 560), (130, 130))
 
         self.upgrade_button_rect = None
@@ -834,6 +835,7 @@ class Game():
         tower_info = None
         cur_tower = None
 
+        pygame.event.set_allowed([pygame.QUIT, pygame.KEYDOWN, pygame.KEYUP, pygame.MOUSEMOTION])
         # Main game Loop
         while self.playing:
             # Game Over
@@ -848,6 +850,9 @@ class Game():
             # Main event loop
             for event in events:
                 if event.type == pygame.QUIT:
+                    pygame.quit()
+                    return
+                if keys[pygame.K_q]:
                     pygame.quit()
                     return
 

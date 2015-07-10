@@ -189,7 +189,8 @@ class ArmorMonster(Monster):
     self.name = "Armored Monster"
     self.description = "An armored monster that takes progressively more damage as it is hit"
 
-  # Does damage to the monster and checks if it dies
+    # Does damage to the monster and checks if it dies TODO: This armor system is just an armor system right now
+    # Need to keep track of how many times it's been hit and multiply damage by some amount modified by how many times it's been hit
   def damage(self, damage):
     if self.armor > 0:
       self.armor -= 25
@@ -1016,9 +1017,9 @@ class Game():
                 self.core_health -= monster.update(self.game_surface)
 
             # Draws to the screen
-            self.monsters.draw(self.game_surface)
             self.towers.update(self.monsters, self.game_surface, self.game_surface_rect)
             self.towers.draw(self.game_surface)
+            self.monsters.draw(self.game_surface)
             self.game_window.blit(self.game_surface, (0, 0))
 
             # Bottom_Bar blitting #

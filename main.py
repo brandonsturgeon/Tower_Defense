@@ -1,6 +1,5 @@
 # Pygame Tower Defense
 # Brandon Sturgeon
-
 import pygame
 import random
 import time
@@ -8,10 +7,12 @@ import math
 
 from lib.block import Block
 
+# Monster imports
 from lib.monster import Monster
 from lib.fast_monster import FastMonster
 from lib.armor_monster import ArmorMonster
 
+# Tower imports
 from lib.tower import Tower
 from lib.mortar_tower import MortarTower
 from lib.rapid_tower import RapidTower
@@ -20,8 +21,10 @@ from lib.slow_tower import SlowTower
 from lib.amp_field import AmpField
 from lib.multi_shot_tower import MultiShot
 
+# Misc imports
 from lib.tower_shop_tab import TowerShopTab
 from lib.info_tab import InfoTab
+from lib.outlined_surface import OutlinedSurface
 
 # Main game class
 class Game():
@@ -31,8 +34,10 @@ class Game():
         flags = pygame.DOUBLEBUF | pygame.FULLSCREEN | pygame.HWSURFACE
         self.game_window = pygame.display.set_mode((1000, 700), flags)
         self.game_window.fill((0, 255, 255))
+
         self.game_surface = pygame.Surface((1000, 560)).convert()
         self.game_surface_rect = pygame.Rect((0, 0), self.game_surface.get_size())
+
         self.bottom_bar = pygame.Surface((990, 130)).convert()
         self.bottom_bar.fill((190, 115, 0))
         self.bottom_bar_rect = pygame.Rect((0, 560), (1000, 140))
@@ -62,6 +67,18 @@ class Game():
         self.start_button_rect = pygame.Rect((870, 560), (130, 130))
 
         self.upgrade_button_rect = None
+
+        # Creating the game over screen
+        self.game_over_prompt = False
+        self.game_over_screen = pygame.Surface((260, 130)).convert()
+        self.game_over_screen.fill((255, 255, 255))
+        game_over_text = self.font.render("Game Over!", 1, (255, 0, 0))
+
+        text_blit_x = (self.game_over_screen.get_width()/2) - game_over_text.get_width()/2
+        text_blit_y = (self.game_over_screen.get_height()/2) - game_over_text.get_height()/2
+        text_blit_pos = (text_blit_x, text_blit_y)
+        self.game_over_screen.blit(game_over_text, text_blit_pos)
+        self.game_over_screen = OutlinedSurface(self.game_over_screen, 2, (0,0,0)).surface
 
         self.cursor = pygame.Surface((1000, 700)).convert()
         self.core_health = 100
@@ -132,11 +149,16 @@ class Game():
         pygame.event.set_allowed([pygame.QUIT, pygame.KEYDOWN, pygame.KEYUP, pygame.MOUSEMOTION])
         # Main game Loop
         while self.playing:
+            self.clock.tick(60)
+
             # Game Over
             if self.core_health <= 0:
-                return
+                self.game_over_prompt = True
 
-            self.clock.tick(60)
+            if self.game_over_prompt is True:
+                self.can_interact = False
+
+
             events = pygame.event.get()
             mouse_button = pygame.mouse.get_pressed()
             keys = pygame.key.get_pressed()
@@ -159,6 +181,8 @@ class Game():
                 if not self.can_interact:
                     break
 
+                # TODO: refactor this into its own function
+                # Hey, look at me. Seriously. Refactor this. -past you
                 # Otherwise, check events
                 else:
                     # Left mouse button
@@ -367,6 +391,13 @@ class Game():
                                                                    tower_info.frame.image.get_height()/2))
                 self.cursor.set_alpha(75)
                 self.game_window.blit(self.cursor, (0, 0))
+
+
+            if self.game_over_prompt is True:
+                blit_pos_x = 500 - self.game_over_screen.get_width()/2
+                blit_pos_y = 350 - self.game_over_screen.get_height()/2
+                blit_pos = (blit_pos_x, blit_pos_y)
+                self.game_window.blit(self.game_over_screen, blit_pos)
 
             pygame.display.flip()
 

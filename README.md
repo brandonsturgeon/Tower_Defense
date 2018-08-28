@@ -14,3 +14,5 @@ Hit Q to exit the game
 
 Some towers can only be placed on already-placed Blocks, while others can only be placed on the current monster path (Landmines, Amp Fields)
 
+
+Here's a Demo: https://www.youtube.com/watch?v=8So0zA8wdlE
